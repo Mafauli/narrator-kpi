@@ -30,10 +30,38 @@ const Onboarding = () => {
   const [goalValue, setGoalValue] = useState("10");
   const [tone, setTone] = useState<"sobre" | "coach" | "energique" | "no-bs">("no-bs");
 
-  const handleConnectAirtable = () => {
-    // TODO: Implement OAuth Airtable flow
-    toast.info("Connexion Airtable en cours de développement");
-    setAirtableConnected(true);
+  const handleConnectAirtable = async () => {
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Non connecté");
+
+      const state = user.id;
+      const { data, error } = await supabase.functions.invoke('airtable-oauth-start', {
+        body: { userId: user.id, state }
+      });
+
+      if (error) throw error;
+
+      const popup = window.open(data.authUrl, 'airtable-oauth', 'width=600,height=700');
+      
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data.type === 'airtable-oauth-success') {
+          setAirtableConnected(true);
+          toast.success("Connexion Airtable établie !");
+          window.removeEventListener('message', handleMessage);
+        } else if (event.data.type === 'airtable-oauth-error') {
+          toast.error("Erreur de connexion Airtable");
+          window.removeEventListener('message', handleMessage);
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors de la connexion");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSavePreferences = async () => {
@@ -136,9 +164,10 @@ const Onboarding = () => {
                       size="lg"
                       className="bg-accent hover:bg-accent/90"
                       onClick={handleConnectAirtable}
+                      disabled={isLoading}
                     >
                       <Database className="mr-2 h-5 w-5" />
-                      Connecter avec Airtable
+                      {isLoading ? "Connexion..." : "Connecter avec Airtable"}
                     </Button>
                   </div>
                 ) : (
