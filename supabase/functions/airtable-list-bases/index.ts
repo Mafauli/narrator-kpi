@@ -13,6 +13,8 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
@@ -24,6 +26,8 @@ serve(async (req) => {
     );
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.log('User auth result:', { userId: user?.id, error: userError?.message });
+    
     if (userError || !user) {
       throw new Error('Unauthorized');
     }
