@@ -8,6 +8,8 @@ import { useRef, useState } from "react";
 const Landing = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   const toggleAudio = () => {
     if (audioRef.current) {
@@ -191,6 +193,8 @@ const Landing = () => {
                 onEnded={() => setIsPlaying(false)}
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
+                onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
               />
               <div className="flex items-center justify-center gap-4">
                 <Button 
@@ -202,13 +206,13 @@ const Landing = () => {
                   {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
                 </Button>
                 <div className="flex-1 h-2 bg-card/20 rounded-full max-w-md">
-                  <div className="h-full w-0 bg-accent rounded-full transition-all" style={{
-                    width: audioRef.current ? `${(audioRef.current.currentTime / audioRef.current.duration) * 100}%` : '0%'
+                  <div className="h-full bg-accent rounded-full transition-all" style={{
+                    width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%'
                   }} />
                 </div>
                 <span className="text-sm font-mono">
-                  {audioRef.current && !isNaN(audioRef.current.duration) 
-                    ? `${Math.floor(audioRef.current.currentTime / 60)}:${String(Math.floor(audioRef.current.currentTime % 60)).padStart(2, '0')} / ${Math.floor(audioRef.current.duration / 60)}:${String(Math.floor(audioRef.current.duration % 60)).padStart(2, '0')}`
+                  {duration > 0
+                    ? `${Math.floor(currentTime / 60)}:${String(Math.floor(currentTime % 60)).padStart(2, '0')} / ${Math.floor(duration / 60)}:${String(Math.floor(duration % 60)).padStart(2, '0')}`
                     : '0:00 / 0:00'
                   }
                 </span>
