@@ -105,7 +105,7 @@ serve(async (req) => {
     console.log('Connection saved successfully');
 
     // Redirect directly to the app onboarding page
-    const appUrl = Deno.env.get('SUPABASE_URL')?.replace('supabase.co', 'lovableproject.com') || '';
+    const appUrl = Deno.env.get('APP_URL') || Deno.env.get('SUPABASE_URL')?.replace('supabase.co', 'lovableproject.com') || '';
     const redirectUrl = `${appUrl}/app/onboarding?airtable_connected=true`;
     
     return new Response(null, {
