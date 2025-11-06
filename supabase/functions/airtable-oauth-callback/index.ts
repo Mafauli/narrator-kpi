@@ -105,9 +105,10 @@ serve(async (req) => {
     console.log('Connection saved successfully');
 
     // Close popup and notify parent
-    return new Response(`
+    return new Response(`<!DOCTYPE html>
       <html>
         <head>
+          <meta charset="UTF-8">
           <style>
             body { font-family: system-ui; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f5f5f5; }
             .message { text-align: center; }
@@ -117,20 +118,27 @@ serve(async (req) => {
         <body>
           <div class="message">
             <div class="success">✓ Connexion réussie</div>
-            <p>Vous pouvez fermer cette fenêtre</p>
+            <p>Fermeture automatique...</p>
           </div>
           <script>
-            if (window.opener) {
+            try {
               window.opener.postMessage({ type: 'airtable-oauth-success' }, '*');
-              setTimeout(() => window.close(), 500);
-            } else {
-              window.location.href = '${Deno.env.get('SUPABASE_URL')?.replace('supabase.co', 'lovableproject.com') || 'about:blank'}';
+              setTimeout(() => {
+                window.close();
+                // Fallback if close doesn't work
+                if (!window.closed) {
+                  window.location.href = 'about:blank';
+                }
+              }, 100);
+            } catch (e) {
+              console.error('Error closing window:', e);
+              window.close();
             }
           </script>
         </body>
       </html>
     `, {
-      headers: { 'Content-Type': 'text/html' }
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
     });
   } catch (error) {
     console.error('Callback error:', error);
