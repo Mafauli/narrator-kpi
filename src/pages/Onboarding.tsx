@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Play, Database, Settings, Sparkles } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Play, Database, Settings, Sparkles, HelpCircle, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,19 +21,115 @@ const Onboarding = () => {
   // Step 1: Airtable connection
   const [airtableConnected, setAirtableConnected] = useState(false);
 
+  // Step 2: View selection
+  const [bases, setBases] = useState<any[]>([]);
+  const [selectedBase, setSelectedBase] = useState<string>("");
+  const [tables, setTables] = useState<any[]>([]);
+  const [selectedViews, setSelectedViews] = useState<{
+    baseId: string;
+    baseName: string;
+    tableId: string;
+    tableName: string;
+    viewId: string;
+    viewName: string;
+  }[]>([]);
+
   // Detect OAuth redirect with success parameter
   useEffect(() => {
     if (searchParams.get('airtable_connected') === 'true') {
       setAirtableConnected(true);
-      setStep(2);
-      toast.success("Connexion Airtable établie !");
       // Remove the parameter from URL
       searchParams.delete('airtable_connected');
       setSearchParams(searchParams, { replace: true });
+      toast.success("Connexion Airtable établie !");
+      // Fetch bases immediately after connection
+      fetchBases();
     }
   }, [searchParams, setSearchParams]);
 
-  // Step 2: Preferences
+  const fetchBases = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('airtable-list-bases');
+      if (error) throw error;
+      setBases(data.bases || []);
+      if (data.bases && data.bases.length > 0) {
+        setStep(2); // Move to view selection
+      }
+    } catch (error: any) {
+      toast.error("Erreur lors du chargement des bases");
+      console.error(error);
+    }
+  };
+
+  const fetchTables = async (baseId: string) => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase.functions.invoke('airtable-list-tables', {
+        body: { baseId }
+      });
+      if (error) throw error;
+      setTables(data.tables || []);
+    } catch (error: any) {
+      toast.error("Erreur lors du chargement des tables");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleViewToggle = (baseId: string, baseName: string, tableId: string, tableName: string, viewId: string, viewName: string) => {
+    const viewKey = `${baseId}-${tableId}-${viewId}`;
+    const existingIndex = selectedViews.findIndex(
+      v => `${v.baseId}-${v.tableId}-${v.viewId}` === viewKey
+    );
+
+    if (existingIndex >= 0) {
+      setSelectedViews(selectedViews.filter((_, i) => i !== existingIndex));
+    } else {
+      setSelectedViews([...selectedViews, { baseId, baseName, tableId, tableName, viewId, viewName }]);
+    }
+  };
+
+  const handleSaveViews = async () => {
+    if (selectedViews.length === 0) {
+      toast.error("Sélectionne au moins une vue");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Non connecté");
+
+      // Delete existing views
+      await supabase.from("airtable_views").delete().eq("user_id", user.id);
+
+      // Insert selected views
+      const { error } = await supabase.from("airtable_views").insert(
+        selectedViews.map(v => ({
+          user_id: user.id,
+          base_id: v.baseId,
+          base_name: v.baseName,
+          table_id: v.tableId,
+          table_name: v.tableName,
+          view_id: v.viewId,
+          view_name: v.viewName,
+          enabled: true
+        }))
+      );
+
+      if (error) throw error;
+
+      toast.success("Vues enregistrées !");
+      setStep(3);
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors de l'enregistrement");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Step 3: Preferences
   const [businessModel, setBusinessModel] = useState<"saas" | "ecommerce" | "services" | "other">("saas");
   const [currency, setCurrency] = useState("EUR");
   const [lang, setLang] = useState("FR");
@@ -101,7 +198,7 @@ const Onboarding = () => {
       if (error) throw error;
 
       toast.success("Préférences enregistrées !");
-      setStep(3);
+      setStep(4);
     } catch (error: any) {
       toast.error(error.message || "Erreur lors de l'enregistrement");
     } finally {
@@ -116,14 +213,14 @@ const Onboarding = () => {
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center gap-4 mb-8">
-      {[1, 2, 3].map((i) => (
+      {[1, 2, 3, 4].map((i) => (
         <div key={i} className="flex items-center gap-2">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
             step >= i ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"
           }`}>
             {i}
           </div>
-          {i < 3 && <div className={`w-12 h-1 ${step > i ? "bg-accent" : "bg-muted"}`} />}
+          {i < 4 && <div className={`w-12 h-1 ${step > i ? "bg-accent" : "bg-muted"}`} />}
         </div>
       ))}
     </div>
@@ -145,7 +242,7 @@ const Onboarding = () => {
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">Configuration initiale</h1>
             <p className="text-muted-foreground">
-              3 étapes rapides pour recevoir ton premier brief
+              4 étapes rapides pour recevoir ton premier brief
             </p>
           </div>
 
@@ -190,10 +287,10 @@ const Onboarding = () => {
                       <span className="font-medium">Connexion établie</span>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Tes bases Airtable sont maintenant accessibles. Tu pourras sélectionner tes vues dans l'étape suivante.
+                      Tes bases Airtable sont maintenant accessibles.
                     </p>
-                    <Button onClick={() => setStep(2)} className="w-full">
-                      Continuer
+                    <Button onClick={() => fetchBases()} className="w-full">
+                      Sélectionner les vues à analyser
                     </Button>
                   </div>
                 )}
@@ -201,8 +298,109 @@ const Onboarding = () => {
             </Card>
           )}
 
-          {/* Step 2: Preferences */}
+          {/* Step 2: View Selection */}
           {step === 2 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2 text-accent mb-2">
+                  <Database className="h-5 w-5" />
+                  <CardTitle>Sélectionne tes vues Airtable</CardTitle>
+                </div>
+                <CardDescription>
+                  Choisis les vues que KPI Narrator doit analyser chaque semaine
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {bases.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Chargement des bases...
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Base Airtable</Label>
+                      <Select value={selectedBase} onValueChange={(v) => {
+                        setSelectedBase(v);
+                        fetchTables(v);
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionne une base" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {bases.map((base) => (
+                            <SelectItem key={base.id} value={base.id}>
+                              {base.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {tables.length > 0 && (
+                      <div className="space-y-4">
+                        <Label>Sélectionne les vues à analyser</Label>
+                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                          {tables.map((table) => (
+                            <div key={table.id} className="border rounded-lg p-4 space-y-2">
+                              <div className="font-medium text-sm flex items-center gap-2">
+                                <ChevronDown className="h-4 w-4" />
+                                {table.name}
+                              </div>
+                              <div className="ml-6 space-y-2">
+                                {table.views?.map((view: any) => {
+                                  const isSelected = selectedViews.some(
+                                    v => v.baseId === selectedBase && v.tableId === table.id && v.viewId === view.id
+                                  );
+                                  const baseName = bases.find(b => b.id === selectedBase)?.name || "";
+                                  return (
+                                    <div key={view.id} className="flex items-center gap-2">
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() => 
+                                          handleViewToggle(selectedBase, baseName, table.id, table.name, view.id, view.name)
+                                        }
+                                      />
+                                      <Label className="text-sm font-normal cursor-pointer">
+                                        {view.name}
+                                      </Label>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedViews.length > 0 && (
+                      <div className="bg-accent/10 border border-accent/20 rounded-lg p-4 space-y-2">
+                        <div className="font-medium text-sm">Vues sélectionnées ({selectedViews.length})</div>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedViews.map((view, i) => (
+                            <div key={i} className="text-xs bg-background border rounded px-2 py-1">
+                              {view.baseName} → {view.tableName} → {view.viewName}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <Button 
+                      onClick={handleSaveViews} 
+                      className="w-full"
+                      disabled={isLoading || selectedViews.length === 0}
+                    >
+                      {isLoading ? "Enregistrement..." : "Continuer"}
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 3: Preferences */}
+          {step === 3 && (
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2 text-accent mb-2">
@@ -310,17 +508,67 @@ const Onboarding = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>North Star (KPI principal)</Label>
-                  <Input value={northStar} onChange={(e) => setNorthStar(e.target.value)} />
+                  <div className="flex items-center gap-2">
+                    <Label>North Star (KPI principal)</Label>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-sm">
+                          Le KPI le plus important pour ton business (ex: MRR, CA, nombre d'utilisateurs actifs). 
+                          C'est la métrique principale que tu veux suivre chaque semaine.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Input 
+                    value={northStar} 
+                    onChange={(e) => setNorthStar(e.target.value)}
+                    placeholder="Ex: MRR, CA mensuel, Utilisateurs actifs..."
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Objectif 8 semaines (%)</Label>
-                  <Input type="number" value={goalValue} onChange={(e) => setGoalValue(e.target.value)} />
+                  <div className="flex items-center gap-2">
+                    <Label>Objectif 8 semaines (%)</Label>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-sm">
+                          La croissance que tu vises pour ton North Star KPI sur les 8 prochaines semaines.
+                          Ex: +10% signifie que tu veux augmenter ton KPI de 10% en 8 semaines.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Input 
+                    type="number" 
+                    value={goalValue} 
+                    onChange={(e) => setGoalValue(e.target.value)}
+                    placeholder="Ex: 10 (pour +10%)"
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Ton du brief</Label>
+                  <div className="flex items-center gap-2">
+                    <Label>Ton du brief</Label>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p className="text-sm">
+                          <strong>Sobre:</strong> Factuel et direct<br/>
+                          <strong>Coach:</strong> Encourageant et positif<br/>
+                          <strong>Énergique:</strong> Dynamique et motivant<br/>
+                          <strong>No-BS:</strong> Franc et sans détour
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   <Select value={tone} onValueChange={(v: any) => setTone(v)}>
                     <SelectTrigger>
                       <SelectValue />
@@ -335,7 +583,7 @@ const Onboarding = () => {
                 </div>
 
                 <div className="flex gap-3 pt-4">
-                  <Button variant="outline" onClick={() => setStep(1)}>
+                  <Button variant="outline" onClick={() => setStep(2)}>
                     Retour
                   </Button>
                   <Button
@@ -350,8 +598,8 @@ const Onboarding = () => {
             </Card>
           )}
 
-          {/* Step 3: Preview */}
-          {step === 3 && (
+          {/* Step 4: Preview */}
+          {step === 4 && (
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2 text-accent mb-2">
