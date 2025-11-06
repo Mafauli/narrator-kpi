@@ -28,8 +28,12 @@ serve(async (req) => {
       throw new Error('Missing code or state');
     }
 
-    // Parse state to get userId
-    const userId = state;
+    // Parse state to get userId and code_verifier
+    const [userId, codeVerifier] = state.split(':');
+    
+    if (!userId || !codeVerifier) {
+      throw new Error('Invalid state format');
+    }
 
     // Exchange code for token
     const clientId = Deno.env.get('AIRTABLE_CLIENT_ID');
@@ -46,6 +50,7 @@ serve(async (req) => {
         grant_type: 'authorization_code',
         code,
         redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
       }),
     });
 
