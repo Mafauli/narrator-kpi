@@ -1,10 +1,25 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Check, Play, Database, Settings, Mail, Shield, Zap } from "lucide-react";
+import { Check, Play, Database, Settings, Mail, Shield, Zap, Pause } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useRef, useState } from "react";
 
 const Landing = () => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const toggleAudio = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
   const steps = [
     {
       icon: Database,
@@ -123,7 +138,11 @@ const Landing = () => {
                 Démarrer gratuitement
               </Button>
             </Link>
-            <Button size="lg" variant="outline" className="text-lg px-8">
+            <Button size="lg" variant="outline" className="text-lg px-8" onClick={() => {
+              const section = document.getElementById('audio-preview');
+              section?.scrollIntoView({ behavior: 'smooth' });
+              setTimeout(toggleAudio, 500);
+            }}>
               <Play className="mr-2 h-5 w-5" />
               Écouter un exemple
             </Button>
@@ -158,7 +177,7 @@ const Landing = () => {
       </section>
 
       {/* Audio Preview */}
-      <section className="py-20 bg-primary text-primary-foreground">
+      <section id="audio-preview" className="py-20 bg-primary text-primary-foreground">
         <div className="container-narrow">
           <div className="text-center space-y-6">
             <h2 className="text-3xl md:text-4xl font-bold">Ce que tu entends</h2>
@@ -166,17 +185,36 @@ const Landing = () => {
               Un brief clair, des chiffres précis, des actions concrètes
             </p>
             <div className="bg-card/10 backdrop-blur rounded-lg p-8 mt-8 shadow-glow">
+              <audio 
+                ref={audioRef} 
+                src="/audio/brief-example.wav"
+                onEnded={() => setIsPlaying(false)}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+              />
               <div className="flex items-center justify-center gap-4">
-                <Button size="icon" variant="secondary" className="h-14 w-14 rounded-full">
-                  <Play className="h-6 w-6" />
+                <Button 
+                  size="icon" 
+                  variant="secondary" 
+                  className="h-14 w-14 rounded-full"
+                  onClick={toggleAudio}
+                >
+                  {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
                 </Button>
                 <div className="flex-1 h-2 bg-card/20 rounded-full max-w-md">
-                  <div className="h-full w-1/3 bg-accent rounded-full" />
+                  <div className="h-full w-0 bg-accent rounded-full transition-all" style={{
+                    width: audioRef.current ? `${(audioRef.current.currentTime / audioRef.current.duration) * 100}%` : '0%'
+                  }} />
                 </div>
-                <span className="text-sm font-mono">1:47 / 2:15</span>
+                <span className="text-sm font-mono">
+                  {audioRef.current && !isNaN(audioRef.current.duration) 
+                    ? `${Math.floor(audioRef.current.currentTime / 60)}:${String(Math.floor(audioRef.current.currentTime % 60)).padStart(2, '0')} / ${Math.floor(audioRef.current.duration / 60)}:${String(Math.floor(audioRef.current.duration % 60)).padStart(2, '0')}`
+                    : '0:00 / 0:00'
+                  }
+                </span>
               </div>
               <p className="text-sm text-primary-foreground/60 mt-6 text-center">
-                Exemple : Brief SaaS — Semaine W45
+                Exemple : Brief KPI — Semaine W45
               </p>
             </div>
           </div>
