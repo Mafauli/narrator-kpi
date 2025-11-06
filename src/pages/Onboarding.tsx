@@ -49,16 +49,25 @@ const Onboarding = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non connecté");
 
+      console.log('🔐 Starting OAuth flow for user:', user.id);
+
       const state = user.id;
       const { data, error } = await supabase.functions.invoke('airtable-oauth-start', {
         body: { userId: user.id, state }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ OAuth start error:', error);
+        throw error;
+      }
 
-      // Redirect to OAuth (full page redirect instead of popup)
+      console.log('✅ OAuth URL received:', data.authUrl);
+
+      // Redirect to OAuth (full page redirect)
+      console.log('🔄 Redirecting to Airtable...');
       window.location.href = data.authUrl;
     } catch (error: any) {
+      console.error('❌ Error in handleConnectAirtable:', error);
       toast.error(error.message || "Erreur lors de la connexion");
       setIsLoading(false);
     }
