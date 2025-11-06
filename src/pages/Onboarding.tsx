@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,11 +13,24 @@ import { supabase } from "@/integrations/supabase/client";
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
 
   // Step 1: Airtable connection
   const [airtableConnected, setAirtableConnected] = useState(false);
+
+  // Detect OAuth redirect with success parameter
+  useEffect(() => {
+    if (searchParams.get('airtable_connected') === 'true') {
+      setAirtableConnected(true);
+      setStep(2);
+      toast.success("Connexion Airtable établie !");
+      // Remove the parameter from URL
+      searchParams.delete('airtable_connected');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Step 2: Preferences
   const [businessModel, setBusinessModel] = useState<"saas" | "ecommerce" | "services" | "other">("saas");
