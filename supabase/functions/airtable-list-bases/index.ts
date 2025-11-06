@@ -33,9 +33,14 @@ serve(async (req) => {
       .from('connections_airtable')
       .select('access_token_encrypted')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (connError || !connection) {
+    if (connError) {
+      console.error('Database error:', connError);
+      throw new Error('Database error');
+    }
+
+    if (!connection) {
       throw new Error('Airtable not connected');
     }
 

@@ -49,24 +49,59 @@ const Onboarding = () => {
 
   const fetchBases = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('airtable-list-bases');
-      if (error) throw error;
+      console.log('🔍 Fetching Airtable bases...');
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Session expirée, reconnecte-toi");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('airtable-list-bases', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+      
+      console.log('📦 Response:', { data, error });
+      
+      if (error) {
+        console.error('❌ Error from edge function:', error);
+        throw error;
+      }
+      
+      if (!data || !data.bases) {
+        console.warn('⚠️ No bases in response:', data);
+        toast.error("Aucune base trouvée");
+        return;
+      }
+      
+      console.log('✅ Bases loaded:', data.bases.length);
       setBases(data.bases || []);
+      
       if (data.bases && data.bases.length > 0) {
         setStep(2); // Move to view selection
       }
     } catch (error: any) {
-      toast.error("Erreur lors du chargement des bases");
-      console.error(error);
+      console.error('❌ Error in fetchBases:', error);
+      toast.error(`Erreur: ${error.message || "Erreur lors du chargement des bases"}`);
     }
   };
 
   const fetchTables = async (baseId: string) => {
     try {
       setIsLoading(true);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
       const { data, error } = await supabase.functions.invoke('airtable-list-tables', {
-        body: { baseId }
+        body: { baseId },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
+      
       if (error) throw error;
       setTables(data.tables || []);
     } catch (error: any) {
