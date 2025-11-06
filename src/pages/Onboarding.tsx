@@ -63,9 +63,13 @@ const Onboarding = () => {
 
       console.log('✅ OAuth URL received:', data.authUrl);
 
-      // Redirect to OAuth (full page redirect)
+      // Redirect to OAuth - use window.top to escape iframe
       console.log('🔄 Redirecting to Airtable...');
-      window.location.href = data.authUrl;
+      if (window.top) {
+        window.top.location.href = data.authUrl;
+      } else {
+        window.location.href = data.authUrl;
+      }
     } catch (error: any) {
       console.error('❌ Error in handleConnectAirtable:', error);
       toast.error(error.message || "Erreur lors de la connexion");
