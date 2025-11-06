@@ -56,24 +56,10 @@ const Onboarding = () => {
 
       if (error) throw error;
 
-      const popup = window.open(data.authUrl, 'airtable-oauth', 'width=600,height=700');
-      
-      const handleMessage = (event: MessageEvent) => {
-        if (event.data.type === 'airtable-oauth-success') {
-          setAirtableConnected(true);
-          setStep(2);
-          toast.success("Connexion Airtable établie !");
-          window.removeEventListener('message', handleMessage);
-        } else if (event.data.type === 'airtable-oauth-error') {
-          toast.error("Erreur de connexion Airtable");
-          window.removeEventListener('message', handleMessage);
-        }
-      };
-
-      window.addEventListener('message', handleMessage);
+      // Redirect to OAuth (full page redirect instead of popup)
+      window.location.href = data.authUrl;
     } catch (error: any) {
       toast.error(error.message || "Erreur lors de la connexion");
-    } finally {
       setIsLoading(false);
     }
   };
