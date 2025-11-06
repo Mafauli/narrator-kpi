@@ -2,8 +2,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Play, Settings, Database, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const Dashboard = () => {
+  const { signOut } = useAuth();
+
   // Mock data - will be replaced with real data from Lovable Cloud
   const nextBrief = {
     date: "Lundi 13 janvier 2025",
@@ -40,7 +43,7 @@ const Dashboard = () => {
                 Paramètres
               </Button>
             </Link>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="h-4 w-4 mr-2" />
               Déconnexion
             </Button>

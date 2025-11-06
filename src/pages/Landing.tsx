@@ -98,7 +98,7 @@ const Landing = () => {
             <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               FAQ
             </a>
-            <Link to="/app">
+            <Link to="/auth">
               <Button size="sm" className="bg-accent hover:bg-accent/90">
                 Démarrer gratuitement
               </Button>
@@ -118,7 +118,7 @@ const Landing = () => {
             Connecte Airtable. Choisis tes vues. Reçois un audio clair + 3 actions concrètes.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-            <Link to="/app">
+            <Link to="/auth">
               <Button size="lg" className="bg-accent hover:bg-accent/90 text-lg px-8">
                 Démarrer gratuitement
               </Button>
@@ -247,8 +247,8 @@ const Landing = () => {
                         <span className="text-sm">{feature}</span>
                       </li>
                     ))}
-                  </ul>
-                  <Link to="/app" className="block">
+                   </ul>
+                  <Link to="/auth" className="block">
                     <Button className="w-full" variant={plan.popular ? "default" : "outline"}>
                       Start free trial
                     </Button>
