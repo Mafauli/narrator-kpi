@@ -12,10 +12,23 @@ serve(async (req) => {
       console.error('OAuth error:', error);
       return new Response(`
         <html>
+          <head>
+            <style>
+              body { font-family: system-ui; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f5f5f5; }
+              .message { text-align: center; }
+              .error { color: #ef4444; font-size: 24px; margin-bottom: 12px; }
+            </style>
+          </head>
           <body>
+            <div class="message">
+              <div class="error">✗ Erreur</div>
+              <p>Vous pouvez fermer cette fenêtre</p>
+            </div>
             <script>
-              window.opener.postMessage({ type: 'airtable-oauth-error', error: '${error}' }, '*');
-              window.close();
+              if (window.opener) {
+                window.opener.postMessage({ type: 'airtable-oauth-error', error: '${error}' }, '*');
+                setTimeout(() => window.close(), 1000);
+              }
             </script>
           </body>
         </html>
@@ -94,10 +107,25 @@ serve(async (req) => {
     // Close popup and notify parent
     return new Response(`
       <html>
+        <head>
+          <style>
+            body { font-family: system-ui; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f5f5f5; }
+            .message { text-align: center; }
+            .success { color: #10b981; font-size: 24px; margin-bottom: 12px; }
+          </style>
+        </head>
         <body>
+          <div class="message">
+            <div class="success">✓ Connexion réussie</div>
+            <p>Vous pouvez fermer cette fenêtre</p>
+          </div>
           <script>
-            window.opener.postMessage({ type: 'airtable-oauth-success' }, '*');
-            window.close();
+            if (window.opener) {
+              window.opener.postMessage({ type: 'airtable-oauth-success' }, '*');
+              setTimeout(() => window.close(), 500);
+            } else {
+              window.location.href = '${Deno.env.get('SUPABASE_URL')?.replace('supabase.co', 'lovableproject.com') || 'about:blank'}';
+            }
           </script>
         </body>
       </html>
@@ -108,10 +136,23 @@ serve(async (req) => {
     console.error('Callback error:', error);
     return new Response(`
       <html>
+        <head>
+          <style>
+            body { font-family: system-ui; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f5f5f5; }
+            .message { text-align: center; }
+            .error { color: #ef4444; font-size: 24px; margin-bottom: 12px; }
+          </style>
+        </head>
         <body>
+          <div class="message">
+            <div class="error">✗ Erreur de connexion</div>
+            <p>Vous pouvez fermer cette fenêtre</p>
+          </div>
           <script>
-            window.opener.postMessage({ type: 'airtable-oauth-error', error: '${(error as Error).message}' }, '*');
-            window.close();
+            if (window.opener) {
+              window.opener.postMessage({ type: 'airtable-oauth-error', error: '${(error as Error).message}' }, '*');
+              setTimeout(() => window.close(), 1000);
+            }
           </script>
         </body>
       </html>
