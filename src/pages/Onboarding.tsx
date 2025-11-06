@@ -48,6 +48,7 @@ const Onboarding = () => {
       const handleMessage = (event: MessageEvent) => {
         if (event.data.type === 'airtable-oauth-success') {
           setAirtableConnected(true);
+          setStep(2);
           toast.success("Connexion Airtable établie !");
           window.removeEventListener('message', handleMessage);
         } else if (event.data.type === 'airtable-oauth-error') {
