@@ -1,0 +1,366 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Play, Database, Settings, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
+const Onboarding = () => {
+  const navigate = useNavigate();
+  const [step, setStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Step 1: Airtable connection
+  const [airtableConnected, setAirtableConnected] = useState(false);
+
+  // Step 2: Preferences
+  const [businessModel, setBusinessModel] = useState<"saas" | "ecommerce" | "services" | "other">("saas");
+  const [currency, setCurrency] = useState("EUR");
+  const [lang, setLang] = useState("FR");
+  const [timezone, setTimezone] = useState("Europe/Paris");
+  const [sendDay, setSendDay] = useState(1);
+  const [sendHour, setSendHour] = useState(8);
+  const [northStar, setNorthStar] = useState("MRR");
+  const [goalValue, setGoalValue] = useState("10");
+  const [tone, setTone] = useState<"sobre" | "coach" | "energique" | "no-bs">("no-bs");
+
+  const handleConnectAirtable = () => {
+    // TODO: Implement OAuth Airtable flow
+    toast.info("Connexion Airtable en cours de développement");
+    setAirtableConnected(true);
+  };
+
+  const handleSavePreferences = async () => {
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Non connecté");
+
+      const { error } = await supabase.from("preferences").upsert({
+        user_id: user.id,
+        business_model: businessModel,
+        currency,
+        lang,
+        timezone,
+        send_dow: sendDay,
+        send_hour: sendHour,
+        north_star: northStar,
+        goal_value: parseFloat(goalValue),
+        tone,
+        kpi_pack_json: {},
+        thresholds_json: {}
+      });
+
+      if (error) throw error;
+
+      toast.success("Préférences enregistrées !");
+      setStep(3);
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors de l'enregistrement");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleComplete = () => {
+    toast.success("Configuration terminée !");
+    navigate("/app");
+  };
+
+  const renderStepIndicator = () => (
+    <div className="flex items-center justify-center gap-4 mb-8">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
+            step >= i ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"
+          }`}>
+            {i}
+          </div>
+          {i < 3 && <div className={`w-12 h-1 ${step > i ? "bg-accent" : "bg-muted"}`} />}
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b bg-card/50 backdrop-blur-sm">
+        <div className="container flex items-center justify-between py-4">
+          <div className="flex items-center gap-2">
+            <Play className="h-6 w-6 text-accent" />
+            <span className="text-xl font-bold">KPI Narrator</span>
+          </div>
+        </div>
+      </header>
+
+      <div className="container py-12">
+        <div className="max-w-2xl mx-auto space-y-8">
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-bold">Configuration initiale</h1>
+            <p className="text-muted-foreground">
+              3 étapes rapides pour recevoir ton premier brief
+            </p>
+          </div>
+
+          {renderStepIndicator()}
+
+          {/* Step 1: Connect Airtable */}
+          {step === 1 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2 text-accent mb-2">
+                  <Database className="h-5 w-5" />
+                  <CardTitle>Connecte ton Airtable</CardTitle>
+                </div>
+                <CardDescription>
+                  Connexion OAuth sécurisée (lecture seule)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {!airtableConnected ? (
+                  <div className="text-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto">
+                      <Database className="h-8 w-8 text-accent" />
+                    </div>
+                    <p className="text-muted-foreground">
+                      Autorise KPI Narrator à lire tes bases Airtable.<br />
+                      Aucune écriture, tokens chiffrés.
+                    </p>
+                    <Button
+                      size="lg"
+                      className="bg-accent hover:bg-accent/90"
+                      onClick={handleConnectAirtable}
+                    >
+                      <Database className="mr-2 h-5 w-5" />
+                      Connecter avec Airtable
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-accent">
+                      <Database className="h-5 w-5" />
+                      <span className="font-medium">Connexion établie</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Tes bases Airtable sont maintenant accessibles. Tu pourras sélectionner tes vues dans l'étape suivante.
+                    </p>
+                    <Button onClick={() => setStep(2)} className="w-full">
+                      Continuer
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 2: Preferences */}
+          {step === 2 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2 text-accent mb-2">
+                  <Settings className="h-5 w-5" />
+                  <CardTitle>Configure tes préférences</CardTitle>
+                </div>
+                <CardDescription>
+                  Personnalise ton brief hebdomadaire
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Modèle business</Label>
+                    <Select value={businessModel} onValueChange={(v: any) => setBusinessModel(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="saas">SaaS</SelectItem>
+                        <SelectItem value="ecommerce">E-commerce</SelectItem>
+                        <SelectItem value="services">Services</SelectItem>
+                        <SelectItem value="other">Autre</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Devise</Label>
+                    <Select value={currency} onValueChange={setCurrency}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Langue audio</Label>
+                    <Select value={lang} onValueChange={setLang}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="FR">Français</SelectItem>
+                        <SelectItem value="EN">English</SelectItem>
+                        <SelectItem value="ES">Español</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Fuseau horaire</Label>
+                    <Select value={timezone} onValueChange={setTimezone}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Europe/Paris">Europe/Paris (CET)</SelectItem>
+                        <SelectItem value="America/New_York">America/New York (EST)</SelectItem>
+                        <SelectItem value="America/Los_Angeles">America/Los Angeles (PST)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Jour d'envoi</Label>
+                    <Select value={sendDay.toString()} onValueChange={(v) => setSendDay(parseInt(v))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Lundi</SelectItem>
+                        <SelectItem value="2">Mardi</SelectItem>
+                        <SelectItem value="3">Mercredi</SelectItem>
+                        <SelectItem value="4">Jeudi</SelectItem>
+                        <SelectItem value="5">Vendredi</SelectItem>
+                        <SelectItem value="6">Samedi</SelectItem>
+                        <SelectItem value="7">Dimanche</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Heure d'envoi</Label>
+                    <Select value={sendHour.toString()} onValueChange={(v) => setSendHour(parseInt(v))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <SelectItem key={i} value={i.toString()}>
+                            {String(i).padStart(2, '0')}:00
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>North Star (KPI principal)</Label>
+                  <Input value={northStar} onChange={(e) => setNorthStar(e.target.value)} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Objectif 8 semaines (%)</Label>
+                  <Input type="number" value={goalValue} onChange={(e) => setGoalValue(e.target.value)} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Ton du brief</Label>
+                  <Select value={tone} onValueChange={(v: any) => setTone(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sobre">Sobre</SelectItem>
+                      <SelectItem value="coach">Coach</SelectItem>
+                      <SelectItem value="energique">Énergique</SelectItem>
+                      <SelectItem value="no-bs">No-BS</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button variant="outline" onClick={() => setStep(1)}>
+                    Retour
+                  </Button>
+                  <Button
+                    className="flex-1 bg-accent hover:bg-accent/90"
+                    onClick={handleSavePreferences}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Enregistrement..." : "Continuer"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 3: Preview */}
+          {step === 3 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2 text-accent mb-2">
+                  <Sparkles className="h-5 w-5" />
+                  <CardTitle>Configuration terminée !</CardTitle>
+                </div>
+                <CardDescription>
+                  Tu recevras ton premier brief le {["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"][sendDay]} à {String(sendHour).padStart(2, '0')}:00
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-secondary/30 rounded-lg p-6 space-y-4">
+                  <h3 className="font-semibold">Récapitulatif</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Modèle :</span>
+                      <span className="ml-2 font-medium">{businessModel}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Langue :</span>
+                      <span className="ml-2 font-medium">{lang}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">North Star :</span>
+                      <span className="ml-2 font-medium">{northStar}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Ton :</span>
+                      <span className="ml-2 font-medium">{tone}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  Tu peux modifier ces paramètres à tout moment depuis la page Paramètres.
+                </p>
+
+                <Button
+                  className="w-full bg-accent hover:bg-accent/90"
+                  onClick={handleComplete}
+                  size="lg"
+                >
+                  Accéder au dashboard
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Onboarding;

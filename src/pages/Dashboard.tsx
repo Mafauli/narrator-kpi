@@ -1,17 +1,50 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Play, Settings, Database, LogOut } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  const navigate = useNavigate();
+  const [hasPreferences, setHasPreferences] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkPreferences = async () => {
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("preferences")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!data && !error) {
+        // No preferences found, redirect to onboarding
+        navigate("/app/onboarding");
+      } else {
+        setHasPreferences(true);
+      }
+    };
+
+    checkPreferences();
+  }, [user, navigate]);
 
   // Mock data - will be replaced with real data from Lovable Cloud
   const nextBrief = {
     date: "Lundi 13 janvier 2025",
     time: "08:00 CET"
   };
+
+  if (hasPreferences === null) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Chargement...</div>
+      </div>
+    );
+  }
 
   const recentBriefs = [
     {
