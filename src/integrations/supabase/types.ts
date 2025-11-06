@@ -14,7 +14,174 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      airtable_views: {
+        Row: {
+          base_id: string
+          base_name: string
+          created_at: string
+          enabled: boolean
+          id: string
+          schema_json: Json | null
+          table_id: string
+          table_name: string
+          updated_at: string
+          user_id: string
+          view_id: string
+          view_name: string
+        }
+        Insert: {
+          base_id: string
+          base_name: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          schema_json?: Json | null
+          table_id: string
+          table_name: string
+          updated_at?: string
+          user_id: string
+          view_id: string
+          view_name: string
+        }
+        Update: {
+          base_id?: string
+          base_name?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          schema_json?: Json | null
+          table_id?: string
+          table_name?: string
+          updated_at?: string
+          user_id?: string
+          view_id?: string
+          view_name?: string
+        }
+        Relationships: []
+      }
+      briefs: {
+        Row: {
+          actions_json: Json | null
+          audio_url: string | null
+          created_at: string
+          email_status: Database["public"]["Enums"]["email_status"]
+          facts_json: Json | null
+          id: string
+          script_text: string | null
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          actions_json?: Json | null
+          audio_url?: string | null
+          created_at?: string
+          email_status?: Database["public"]["Enums"]["email_status"]
+          facts_json?: Json | null
+          id?: string
+          script_text?: string | null
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          actions_json?: Json | null
+          audio_url?: string | null
+          created_at?: string
+          email_status?: Database["public"]["Enums"]["email_status"]
+          facts_json?: Json | null
+          id?: string
+          script_text?: string | null
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
+      connections_airtable: {
+        Row: {
+          access_token_encrypted: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          provider: string
+          refresh_token_encrypted: string | null
+          scopes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          provider?: string
+          refresh_token_encrypted?: string | null
+          scopes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          provider?: string
+          refresh_token_encrypted?: string | null
+          scopes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      preferences: {
+        Row: {
+          business_model: Database["public"]["Enums"]["business_model"]
+          created_at: string
+          currency: string
+          goal_value: number | null
+          kpi_pack_json: Json | null
+          lang: string
+          north_star: string | null
+          send_dow: number
+          send_hour: number
+          thresholds_json: Json | null
+          timezone: string
+          tone: Database["public"]["Enums"]["tone_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_model?: Database["public"]["Enums"]["business_model"]
+          created_at?: string
+          currency?: string
+          goal_value?: number | null
+          kpi_pack_json?: Json | null
+          lang?: string
+          north_star?: string | null
+          send_dow?: number
+          send_hour?: number
+          thresholds_json?: Json | null
+          timezone?: string
+          tone?: Database["public"]["Enums"]["tone_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_model?: Database["public"]["Enums"]["business_model"]
+          created_at?: string
+          currency?: string
+          goal_value?: number | null
+          kpi_pack_json?: Json | null
+          lang?: string
+          north_star?: string | null
+          send_dow?: number
+          send_hour?: number
+          thresholds_json?: Json | null
+          timezone?: string
+          tone?: Database["public"]["Enums"]["tone_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +190,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      business_model: "saas" | "ecommerce" | "services" | "other"
+      email_status: "pending" | "sent" | "failed"
+      tone_type: "sobre" | "coach" | "energique" | "no-bs"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +319,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      business_model: ["saas", "ecommerce", "services", "other"],
+      email_status: ["pending", "sent", "failed"],
+      tone_type: ["sobre", "coach", "energique", "no-bs"],
+    },
   },
 } as const
