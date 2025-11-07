@@ -26,19 +26,13 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    console.log('User auth result:', { userId: user?.id, error: userError?.message });
-    
-    if (userError || !user) {
-      throw new Error('Unauthorized');
-    }
-
-    // Get access token
+    // Get access token - RLS automatically filters by user_id from JWT
     const { data: connection, error: connError } = await supabase
       .from('connections_airtable')
       .select('access_token_encrypted')
-      .eq('user_id', user.id)
       .maybeSingle();
+    
+    console.log('Connection query result:', { hasConnection: !!connection, error: connError?.message });
 
     if (connError) {
       console.error('Database error:', connError);
