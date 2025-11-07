@@ -57,11 +57,7 @@ const Onboarding = () => {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('airtable-list-bases', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
-      });
+      const { data, error } = await supabase.functions.invoke('airtable-list-bases');
       
       console.log('📦 Response:', { data, error });
       
@@ -96,10 +92,7 @@ const Onboarding = () => {
       if (!session) return;
 
       const { data, error } = await supabase.functions.invoke('airtable-list-tables', {
-        body: { baseId },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
+        body: { baseId }
       });
       
       if (error) throw error;
