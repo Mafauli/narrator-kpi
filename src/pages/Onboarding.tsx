@@ -428,11 +428,18 @@ const Onboarding = () => {
     <div className="flex items-center justify-center gap-4 mb-8">
       {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
-            step >= i ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"
-          }`}>
+          <button
+            onClick={() => setStep(i)}
+            disabled={i > step && step < 5}
+            className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all ${
+              step >= i 
+                ? "bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer" 
+                : "bg-muted text-muted-foreground cursor-not-allowed"
+            } ${step === i ? "ring-2 ring-accent ring-offset-2" : ""}`}
+            title={i > step ? "Complétez les étapes précédentes" : `Étape ${i}`}
+          >
             {i}
-          </div>
+          </button>
           {i < 5 && <div className={`w-12 h-1 ${step > i ? "bg-accent" : "bg-muted"}`} />}
         </div>
       ))}
