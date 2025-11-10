@@ -63,12 +63,20 @@ serve(async (req) => {
       .select("*")
       .eq("id", brief_id)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (briefError || !brief) {
-      console.error("Brief not found:", briefError);
+    if (briefError) {
+      console.error("Database error fetching brief:", briefError);
       return new Response(
-        JSON.stringify({ error: "Brief not found" }),
+        JSON.stringify({ error: "Database error", details: briefError.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!brief) {
+      console.error(`Brief ${brief_id} not found for user ${user.id}`);
+      return new Response(
+        JSON.stringify({ error: "Brief not found or does not belong to user" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
