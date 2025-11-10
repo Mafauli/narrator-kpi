@@ -58,8 +58,8 @@ const TestBriefGeneration = () => {
     // Charger un exemple historique mocké pour tester l'UI sans appeler les APIs
     const mockResult = {
       success: true,
-      brief_id: "example-brief-123",
-      audio_url: "/audio/brief-example.wav",
+      brief_id: "81eb6e87-46e7-435b-a13c-9212ee1941e4", // ID d'un vrai brief existant
+      audio_url: "https://whwqreslsneuaavbvlnt.supabase.co/storage/v1/object/public/briefs-audio/3340e84b-11cb-4286-a146-21142152d58d/brief-2025-11-10-1762812914607.mp3",
       brief_text: {
         introduction: "Bonjour ! Voici votre brief hebdomadaire du 4 au 10 novembre. Cette semaine, nous observons des performances solides avec quelques points d'attention à ne pas négliger.",
         kpi_analysis: "MRR : 45 000€ (+12% vs semaine dernière)\nTaux de conversion : 3.2% (-0.3 points)\nNombre de nouveaux clients : 23 (+5)\nChurn rate : 2.1% (stable)",
@@ -377,10 +377,7 @@ const TestBriefGeneration = () => {
               <CardHeader>
                 <CardTitle>Envoyer via WhatsApp</CardTitle>
                 <CardDescription>
-                  {isMockData 
-                    ? "⚠️ Générez un vrai brief pour pouvoir l'envoyer via WhatsApp" 
-                    : "Envoyez ce brief directement sur WhatsApp"
-                  }
+                  Envoyez ce brief directement sur WhatsApp
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -394,7 +391,6 @@ const TestBriefGeneration = () => {
                         placeholder="+33"
                         value={countryCode}
                         onChange={(e) => setCountryCode(e.target.value)}
-                        disabled={isMockData}
                       />
                     </div>
                     <div className="flex-1">
@@ -405,13 +401,12 @@ const TestBriefGeneration = () => {
                         placeholder="612345678"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
-                        disabled={isMockData}
                       />
                     </div>
                   </div>
                   <Button 
                     onClick={handleSendWhatsApp} 
-                    disabled={sending || !phoneNumber || isMockData}
+                    disabled={sending || !phoneNumber}
                     className="gap-2"
                   >
                     {sending ? (
