@@ -46,13 +46,63 @@ const TestBriefGeneration = () => {
   };
 
   const handleSendWhatsApp = async () => {
-    if (!result?.brief_id || !phoneNumber) return;
+    if (!displayResult?.brief_id || !phoneNumber) return;
     const fullPhoneNumber = `${countryCode}${phoneNumber}`;
     await sendBrief({ 
-      brief_id: result.brief_id, 
+      brief_id: displayResult.brief_id, 
       phone_number: fullPhoneNumber 
     });
   };
+
+  const loadHistoricalExample = () => {
+    // Charger un exemple historique mocké pour tester l'UI sans appeler les APIs
+    const mockResult = {
+      success: true,
+      brief_id: "example-brief-123",
+      audio_url: "/audio/brief-example.wav",
+      brief_text: {
+        introduction: "Bonjour ! Voici votre brief hebdomadaire du 4 au 10 novembre. Cette semaine, nous observons des performances solides avec quelques points d'attention à ne pas négliger.",
+        kpi_analysis: "MRR : 45 000€ (+12% vs semaine dernière)\nTaux de conversion : 3.2% (-0.3 points)\nNombre de nouveaux clients : 23 (+5)\nChurn rate : 2.1% (stable)",
+        insights: "La croissance du MRR est excellente, portée par l'acquisition de nouveaux clients. Cependant, le taux de conversion montre un léger recul qui mérite notre attention. Le churn reste stable, ce qui est positif.",
+        actions: [
+          {
+            title: "Optimiser le tunnel de conversion",
+            priority: "high",
+            why: "Le taux de conversion a baissé de 0.3 points cette semaine",
+            how: "Analyser les points de friction dans le parcours d'inscription et A/B tester de nouvelles variantes de la landing page"
+          },
+          {
+            title: "Renforcer l'onboarding des nouveaux clients",
+            priority: "medium",
+            why: "23 nouveaux clients cette semaine, il faut maximiser leur activation",
+            how: "Mettre en place des emails d'onboarding personnalisés et des appels de bienvenue"
+          }
+        ],
+        conclusion: "Globalement, c'est une très bonne semaine avec une croissance solide. Concentrons-nous sur l'amélioration du taux de conversion pour capitaliser sur le trafic existant. Excellente continuation !"
+      },
+      metadata: {
+        avatar: "Emma",
+        voice: "Emma - Professional",
+        total_records: 156,
+        filtered_records: 42,
+        generation_time_ms: 3420
+      }
+    };
+    
+    // Utiliser la même structure que generateBrief pour mettre à jour le state
+    // On simule les logs aussi
+    const mockLogs = [
+      { icon: "📊", message: "Exemple historique chargé", type: "success", timestamp: new Date() },
+      { icon: "✅", message: "Données mockées prêtes pour test", type: "success", timestamp: new Date() }
+    ];
+    
+    // On doit directement manipuler le state du hook, donc on va plutôt 
+    // créer un state local pour l'exemple
+    setMockExample(mockResult);
+  };
+
+  const [mockExample, setMockExample] = useState<any>(null);
+  const displayResult = mockExample || result;
 
   const getLogColor = (type: string) => {
     switch (type) {
@@ -91,24 +141,34 @@ const TestBriefGeneration = () => {
               Workflow complet : Airtable → DeepSeek → ElevenLabs
             </p>
           </div>
-          <Button
-            onClick={handleGenerate}
-            disabled={generating}
-            size="lg"
-            className="gap-2"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Génération en cours...
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4" />
-                Générer un brief
-              </>
-            )}
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={loadHistoricalExample}
+              variant="outline"
+              size="lg"
+              className="gap-2"
+            >
+              📋 Charger exemple historique
+            </Button>
+            <Button
+              onClick={handleGenerate}
+              disabled={generating}
+              size="lg"
+              className="gap-2"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Génération en cours...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4" />
+                  Générer un brief
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Logs Section */}
@@ -158,10 +218,10 @@ const TestBriefGeneration = () => {
         )}
 
         {/* Result Section */}
-        {result && result.success && (
+        {displayResult && displayResult.success && (
           <div className="space-y-6">
             {/* Metadata */}
-            {result.metadata && (
+            {displayResult.metadata && (
               <Card>
                 <CardHeader>
                   <CardTitle>Métadonnées</CardTitle>
@@ -170,22 +230,22 @@ const TestBriefGeneration = () => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
                       <div className="text-muted-foreground">Avatar</div>
-                      <div className="font-semibold">{result.metadata.avatar}</div>
+                      <div className="font-semibold">{displayResult.metadata.avatar}</div>
                     </div>
                     <div>
                       <div className="text-muted-foreground">Voix</div>
-                      <div className="font-semibold">{result.metadata.voice}</div>
+                      <div className="font-semibold">{displayResult.metadata.voice}</div>
                     </div>
                     <div>
                       <div className="text-muted-foreground">Records</div>
                       <div className="font-semibold">
-                        {result.metadata.filtered_records} / {result.metadata.total_records}
+                        {displayResult.metadata.filtered_records} / {displayResult.metadata.total_records}
                       </div>
                     </div>
                     <div>
                       <div className="text-muted-foreground">Durée</div>
                       <div className="font-semibold">
-                        {(result.metadata.generation_time_ms / 1000).toFixed(1)}s
+                        {(displayResult.metadata.generation_time_ms / 1000).toFixed(1)}s
                       </div>
                     </div>
                   </div>
@@ -194,13 +254,13 @@ const TestBriefGeneration = () => {
             )}
 
             {/* Audio Player */}
-            {result.audio_url && (
+            {displayResult.audio_url && (
               <Card>
                 <CardHeader>
                   <CardTitle>Audio généré</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <audio controls className="w-full" src={result.audio_url}>
+                  <audio controls className="w-full" src={displayResult.audio_url}>
                     Votre navigateur ne supporte pas l'élément audio.
                   </audio>
                 </CardContent>
@@ -208,7 +268,7 @@ const TestBriefGeneration = () => {
             )}
 
             {/* Brief Text */}
-            {result.brief_text && (
+            {displayResult.brief_text && (
               <Card>
                 <CardHeader>
                   <CardTitle>Texte du brief</CardTitle>
@@ -219,7 +279,7 @@ const TestBriefGeneration = () => {
                       <AccordionTrigger>Introduction</AccordionTrigger>
                       <AccordionContent>
                         <p className="text-sm leading-relaxed">
-                          {result.brief_text.introduction}
+                          {displayResult.brief_text.introduction}
                         </p>
                       </AccordionContent>
                     </AccordionItem>
@@ -228,7 +288,7 @@ const TestBriefGeneration = () => {
                       <AccordionTrigger>Analyse KPIs</AccordionTrigger>
                       <AccordionContent>
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                          {result.brief_text.kpi_analysis}
+                          {displayResult.brief_text.kpi_analysis}
                         </p>
                       </AccordionContent>
                     </AccordionItem>
@@ -237,19 +297,19 @@ const TestBriefGeneration = () => {
                       <AccordionTrigger>Insights</AccordionTrigger>
                       <AccordionContent>
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                          {result.brief_text.insights}
+                          {displayResult.brief_text.insights}
                         </p>
                       </AccordionContent>
                     </AccordionItem>
 
-                    {result.brief_text.actions && result.brief_text.actions.length > 0 && (
+                    {displayResult.brief_text.actions && displayResult.brief_text.actions.length > 0 && (
                       <AccordionItem value="actions">
                         <AccordionTrigger>
-                          Actions recommandées ({result.brief_text.actions.length})
+                          Actions recommandées ({displayResult.brief_text.actions.length})
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="space-y-4">
-                            {result.brief_text.actions.map((action, index) => (
+                            {displayResult.brief_text.actions.map((action, index) => (
                               <div
                                 key={index}
                                 className="border rounded-lg p-4 space-y-2"
@@ -285,7 +345,7 @@ const TestBriefGeneration = () => {
                       <AccordionTrigger>Conclusion</AccordionTrigger>
                       <AccordionContent>
                         <p className="text-sm leading-relaxed">
-                          {result.brief_text.conclusion}
+                          {displayResult.brief_text.conclusion}
                         </p>
                       </AccordionContent>
                     </AccordionItem>
