@@ -307,8 +307,8 @@ const Onboarding = () => {
   // Step 4: Avatar selection
   const [avatars, setAvatars] = useState<any[]>([]);
   const [selectedAvatar, setSelectedAvatar] = useState<any>(null);
-  const [avatarSectorFilter, setAvatarSectorFilter] = useState<string>("");
-  const [avatarToneFilter, setAvatarToneFilter] = useState<string>("");
+  const [avatarSectorFilter, setAvatarSectorFilter] = useState<string>("all");
+  const [avatarToneFilter, setAvatarToneFilter] = useState<string>("all");
   const [selectedVoice, setSelectedVoice] = useState<string>("");
 
   const handleConnectAirtable = async () => {
@@ -844,7 +844,7 @@ const Onboarding = () => {
                       <SelectValue placeholder="Tous les secteurs" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tous les secteurs</SelectItem>
+                      <SelectItem value="all">Tous les secteurs</SelectItem>
                       <SelectItem value="saas">SaaS</SelectItem>
                       <SelectItem value="ecom">E-commerce</SelectItem>
                       <SelectItem value="services">Services</SelectItem>
@@ -856,7 +856,7 @@ const Onboarding = () => {
                       <SelectValue placeholder="Tous les tons" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tous les tons</SelectItem>
+                      <SelectItem value="all">Tous les tons</SelectItem>
                       <SelectItem value="sobre">Sobre</SelectItem>
                       <SelectItem value="coach">Coach</SelectItem>
                       <SelectItem value="no-bs">No-BS</SelectItem>
@@ -868,8 +868,8 @@ const Onboarding = () => {
                 {/* Avatar Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {avatars
-                    .filter(avatar => !avatarSectorFilter || avatar.best_for.includes(avatarSectorFilter))
-                    .filter(avatar => !avatarToneFilter || avatar.default_tone === avatarToneFilter)
+                    .filter(avatar => avatarSectorFilter === "all" || avatar.best_for.includes(avatarSectorFilter))
+                    .filter(avatar => avatarToneFilter === "all" || avatar.default_tone === avatarToneFilter)
                     .map((avatar) => (
                       <Card key={avatar.id} className={`cursor-pointer transition-all hover:shadow-md ${
                         selectedAvatar?.id === avatar.id ? 'ring-2 ring-accent' : ''
