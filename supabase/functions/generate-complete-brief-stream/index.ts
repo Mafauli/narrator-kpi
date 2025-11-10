@@ -284,12 +284,12 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         sendLog({ timestamp: Date.now(), type: "info", icon: "  └─", message: "Modèle: eleven_multilingual_v2" });
         sendLog({ timestamp: Date.now(), type: "success", icon: "✅", message: "Audio généré" });
 
-        // Étape 7: Sauvegarde dans la table briefs
+        // Étape 7: Sauvegarde dans la table briefs (UPSERT)
         sendLog({ timestamp: Date.now(), type: "info", icon: "💾", message: "Sauvegarde du brief..." });
 
         const { data: briefData, error: briefError } = await supabase
           .from("briefs")
-          .insert({
+          .upsert({
             user_id: user.id,
             week_start: weekStart,
             script_text: narrativeText,
@@ -302,6 +302,8 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
               estimated_tokens: filteredRecords * 200,
             },
             email_status: "pending",
+          }, {
+            onConflict: 'user_id,week_start'
           })
           .select()
           .single();
