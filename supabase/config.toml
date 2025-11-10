@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.generate-brief-text]
 verify_jwt = true
+
+[functions.fetch-airtable-data]
+verify_jwt = true
+
+[functions.generate-complete-brief]
+verify_jwt = true

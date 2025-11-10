@@ -7,6 +7,7 @@ import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
+import TestBriefGeneration from "./pages/TestBriefGeneration";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -29,6 +30,11 @@ const App = () => (
           <Route path="/app" element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/app/test-brief-generation" element={
+            <ProtectedRoute>
+              <TestBriefGeneration />
             </ProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
