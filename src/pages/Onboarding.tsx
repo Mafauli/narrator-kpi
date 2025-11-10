@@ -61,6 +61,80 @@ const Onboarding = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  // Load existing data on mount
+  useEffect(() => {
+    const loadExistingData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Load existing views
+      const { data: viewsData } = await supabase
+        .from('airtable_views')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (viewsData && viewsData.length > 0) {
+        const loadedViews = viewsData.map(v => ({
+          baseId: v.base_id,
+          baseName: v.base_name,
+          tableId: v.table_id,
+          tableName: v.table_name,
+          viewId: v.view_id,
+          viewName: v.view_name
+        }));
+        setSelectedViews(loadedViews);
+        console.log('✅ Loaded existing views:', loadedViews.length);
+      }
+
+      // Load existing preferences
+      const { data: prefsData } = await supabase
+        .from('preferences')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (prefsData) {
+        setBusinessModel(prefsData.business_model || 'saas');
+        setCurrency(prefsData.currency || 'EUR');
+        setLang(prefsData.lang || 'FR');
+        setTimezone(prefsData.timezone || 'Europe/Paris');
+        setSendDay(prefsData.send_dow || 1);
+        setSendHour(prefsData.send_hour || 8);
+        setNorthStar(prefsData.north_star || 'MRR');
+        setGoalValue(prefsData.goal_value?.toString() || '10');
+        setTone(prefsData.tone || 'no-bs');
+        console.log('✅ Loaded existing preferences');
+      }
+
+      // Check if Airtable is connected
+      const { data: connData } = await supabase
+        .from('connections_airtable')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (connData) {
+        setAirtableConnected(true);
+        console.log('✅ Airtable already connected');
+        
+        // Auto-load bases if connected
+        const stepParam = searchParams.get('step');
+        if (stepParam === '2') {
+          await fetchBases();
+          
+          // If views exist, pre-select the first base to show tables
+          if (viewsData && viewsData.length > 0) {
+            const firstBase = viewsData[0].base_id;
+            setSelectedBase(firstBase);
+            await fetchTables(firstBase);
+          }
+        }
+      }
+    };
+
+    loadExistingData();
+  }, []);
+
   const fetchBases = async () => {
     try {
       console.log('🔍 Fetching Airtable bases...');
@@ -363,6 +437,15 @@ const Onboarding = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {selectedViews.length > 0 && (
+                  <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+                    <p className="text-sm">
+                      ✅ Tu as déjà <strong>{selectedViews.length} vue{selectedViews.length > 1 ? 's' : ''} configurée{selectedViews.length > 1 ? 's' : ''}</strong>. 
+                      Tu peux modifier ta sélection ci-dessous.
+                    </p>
+                  </div>
+                )}
+                
                 {bases.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     Chargement des bases...
@@ -464,6 +547,14 @@ const Onboarding = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {northStar !== "MRR" && (
+                  <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+                    <p className="text-sm">
+                      ✅ Tes préférences sont déjà configurées. Tu peux les modifier ci-dessous.
+                    </p>
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Modèle business</Label>
