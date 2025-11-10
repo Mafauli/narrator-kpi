@@ -1,15 +1,25 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Check, Play, Database, Settings, Mail, Shield, Zap, Pause } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useRef, useState } from "react";
+import { Check, Play, Database, Settings, Mail, Shield, Zap, Pause, LogOut } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { useRef, useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 const Landing = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const { user, loading, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/app");
+    }
+  }, [user, loading, navigate]);
 
   const toggleAudio = () => {
     if (audioRef.current) {
@@ -96,6 +106,15 @@ const Landing = () => {
     }
   ];
 
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Chargement...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -115,11 +134,25 @@ const Landing = () => {
             <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               FAQ
             </a>
-            <Link to="/auth">
-              <Button size="sm" className="bg-accent hover:bg-accent/90">
-                Démarrer gratuitement
-              </Button>
-            </Link>
+            {user ? (
+              <>
+                <Link to="/app">
+                  <Button size="sm" variant="outline">
+                    Dashboard
+                  </Button>
+                </Link>
+                <Button size="sm" variant="ghost" onClick={signOut}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Déconnexion
+                </Button>
+              </>
+            ) : (
+              <Link to="/auth">
+                <Button size="sm" className="bg-accent hover:bg-accent/90">
+                  Démarrer gratuitement
+                </Button>
+              </Link>
+            )}
           </nav>
         </div>
       </header>
