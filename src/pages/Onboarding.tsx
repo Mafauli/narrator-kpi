@@ -9,9 +9,11 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Play, Database, Settings, Sparkles, HelpCircle, ChevronDown, User, Volume2 } from "lucide-react";
+import { Play, Database, Settings, Sparkles, HelpCircle, ChevronDown, User, Volume2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useElevenLabsVoices } from "@/hooks/useElevenLabsVoices";
+import { VoicePreviewCard } from "@/components/VoicePreviewCard";
 
 // Avatar images
 import leoAvatar from "@/assets/avatars/leo.png";
@@ -310,6 +312,9 @@ const Onboarding = () => {
   const [avatarSectorFilter, setAvatarSectorFilter] = useState<string>("all");
   const [avatarToneFilter, setAvatarToneFilter] = useState<string>("all");
   const [selectedVoice, setSelectedVoice] = useState<string>("");
+
+  // ElevenLabs voices
+  const { voices, loading: voicesLoading, syncing, syncVoices } = useElevenLabsVoices();
 
   const handleConnectAirtable = async () => {
     setIsLoading(true);
@@ -925,9 +930,12 @@ const Onboarding = () => {
                 {/* Selected avatar detail panel */}
                 {selectedAvatar && (
                   <Card className="bg-accent/5 border-accent/20">
-                    <CardContent className="p-6 space-y-4">
-                      <h3 className="font-semibold text-lg">Détails de {selectedAvatar.name}</h3>
-                      <p className="text-sm">{selectedAvatar.long_pitch}</p>
+                    <CardContent className="p-6 space-y-6">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2">Détails de {selectedAvatar.name}</h3>
+                        <p className="text-sm text-muted-foreground">{selectedAvatar.long_pitch}</p>
+                      </div>
+                      
                       <div>
                         <h4 className="text-sm font-medium mb-2">Compétences clés</h4>
                         <div className="flex flex-wrap gap-2">
@@ -936,6 +944,7 @@ const Onboarding = () => {
                           ))}
                         </div>
                       </div>
+                      
                       <div>
                         <h4 className="text-sm font-medium mb-2">Exemples d'actions</h4>
                         <ul className="space-y-1 text-sm">
@@ -947,9 +956,58 @@ const Onboarding = () => {
                           ))}
                         </ul>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-medium mb-2">Voix recommandée</h4>
-                        <Badge>{selectedAvatar.voice_reco}</Badge>
+
+                      {/* Voice selection section */}
+                      <div className="border-t pt-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-medium">Choisis une voix</h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={syncVoices}
+                            disabled={syncing}
+                            className="h-8 gap-2"
+                          >
+                            <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
+                            {syncing ? "Sync..." : "Sync voix"}
+                          </Button>
+                        </div>
+
+                        {voicesLoading ? (
+                          <p className="text-sm text-muted-foreground">Chargement des voix...</p>
+                        ) : voices.length === 0 ? (
+                          <div className="text-center py-4">
+                            <p className="text-sm text-muted-foreground mb-3">
+                              Aucune voix disponible. Synchronise les voix depuis ElevenLabs.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={syncVoices}
+                              disabled={syncing}
+                            >
+                              <RefreshCw className={`h-3 w-3 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                              Synchroniser les voix
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {voices.slice(0, 5).map((voice) => (
+                              <VoicePreviewCard
+                                key={voice.voice_id}
+                                voice={voice}
+                                isSelected={selectedVoice === voice.voice_id}
+                                onSelect={() => setSelectedVoice(voice.voice_id)}
+                                compact
+                              />
+                            ))}
+                            {voices.length > 5 && (
+                              <p className="text-xs text-muted-foreground text-center pt-2">
+                                {voices.length - 5} autres voix disponibles
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -993,7 +1051,11 @@ const Onboarding = () => {
                       <div>
                         <p className="font-semibold">{selectedAvatar.name}</p>
                         <p className="text-sm text-muted-foreground">{selectedAvatar.role}</p>
-                        <Badge variant="secondary" className="mt-1">{selectedAvatar.voice_reco}</Badge>
+                        {selectedVoice && (
+                          <Badge variant="secondary" className="mt-1">
+                            {voices.find(v => v.voice_id === selectedVoice)?.name || "Voix personnalisée"}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>

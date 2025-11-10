@@ -59,6 +59,41 @@ export type Database = {
         }
         Relationships: []
       }
+      avatar_voice_mapping: {
+        Row: {
+          avatar_id: string
+          created_at: string | null
+          elevenlabs_voice_id: string
+          id: string
+          is_default: boolean | null
+          voice_name: string
+        }
+        Insert: {
+          avatar_id: string
+          created_at?: string | null
+          elevenlabs_voice_id: string
+          id?: string
+          is_default?: boolean | null
+          voice_name: string
+        }
+        Update: {
+          avatar_id?: string
+          created_at?: string | null
+          elevenlabs_voice_id?: string
+          id?: string
+          is_default?: boolean | null
+          voice_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avatar_voice_mapping_avatar_id_fkey"
+            columns: ["avatar_id"]
+            isOneToOne: false
+            referencedRelation: "avatars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       avatars: {
         Row: {
           best_for: string[]
@@ -176,6 +211,48 @@ export type Database = {
           scopes?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      elevenlabs_voices: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          gender: string | null
+          id: string
+          labels: Json | null
+          language: string | null
+          name: string
+          preview_url: string | null
+          updated_at: string | null
+          voice_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          gender?: string | null
+          id: string
+          labels?: Json | null
+          language?: string | null
+          name: string
+          preview_url?: string | null
+          updated_at?: string | null
+          voice_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          gender?: string | null
+          id?: string
+          labels?: Json | null
+          language?: string | null
+          name?: string
+          preview_url?: string | null
+          updated_at?: string | null
+          voice_id?: string
         }
         Relationships: []
       }
