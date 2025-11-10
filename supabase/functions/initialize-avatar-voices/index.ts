@@ -36,23 +36,38 @@ serve(async (req) => {
     const data = await response.json();
     console.log(`Fetched ${data.voices.length} voices from ElevenLabs`);
     
-    // Filter for voices that are either French or multilingual
-    // Many professional voices are multilingual and work great for French
+    // Log some voices to understand the structure
+    console.log("Sample voices:", data.voices.slice(0, 3).map((v: any) => ({
+      name: v.name,
+      labels: v.labels,
+      description: v.description?.substring(0, 50)
+    })));
+    
+    // Filter for French voices (1 for the free tier)
     const frenchVoices = data.voices.filter((v: any) => {
       const lang = v.labels?.language?.toLowerCase() || "";
       const desc = (v.description?.toLowerCase() || "") + " " + (v.name?.toLowerCase() || "");
       
-      // Include if explicitly French or multilingual, or if name/description suggests French capability
       return lang === "fr" || 
              lang === "french" || 
-             lang.includes("multilingual") ||
              desc.includes("french") ||
-             desc.includes("français") ||
-             desc.includes("france");
+             desc.includes("français");
     });
 
-    console.log(`Found ${frenchVoices.length} French/multilingual voices`);
-    console.log(`Voice names: ${frenchVoices.map((v: any) => v.name).join(", ")}`);
+    console.log(`Found ${frenchVoices.length} French voices`);
+
+    // For testing: Take the first French voice and the first 7 available voices
+    // This ensures we have 8 voices mapped to 8 avatars
+    const selectedVoices = [
+      ...frenchVoices.slice(0, 1), // 1 French voice
+      ...data.voices.slice(0, 7)    // First 7 voices (may overlap, but that's ok for testing)
+    ];
+
+    // Remove duplicates
+    const uniqueVoices = Array.from(new Map(selectedVoices.map(v => [v.voice_id, v])).values());
+
+    console.log(`Selected ${uniqueVoices.length} unique voices for 8 avatars`);
+    console.log(`Voice names: ${uniqueVoices.map((v: any) => v.name).join(", ")}`);
 
     // Initialize Supabase with service role key
     const supabaseClient = createClient(
@@ -61,7 +76,7 @@ serve(async (req) => {
     );
 
     // First, sync voices to elevenlabs_voices table
-    const voicesToUpsert = frenchVoices.map((voice: any) => ({
+    const voicesToUpsert = uniqueVoices.map((voice: any) => ({
       id: voice.voice_id,
       voice_id: voice.voice_id,
       name: voice.name,
@@ -94,59 +109,27 @@ serve(async (req) => {
 
     // Create a map for fuzzy matching
     const voiceMap: Record<string, any> = {};
-    frenchVoices.forEach((v: any) => {
+    uniqueVoices.forEach((v: any) => {
       const normalizedName = v.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       voiceMap[normalizedName] = v;
     });
 
-    // Map avatars to voices with more flexible matching
-    const mappings = [];
+    // Map avatars to voices - distribute voices evenly
+    const mappings: Array<{
+      avatar_id: string;
+      voice_name: string;
+      elevenlabs_voice_id: string;
+      is_default: boolean;
+    }> = [];
     let matchCount = 0;
 
-    // Define manual mapping for recommended voice names to likely ElevenLabs equivalents
-    const nameMapping: Record<string, string[]> = {
-      "thomas": ["thomas", "antoine", "alex", "henri", "pierre"],
-      "claire": ["claire", "charlotte", "chloe", "amelie", "marie"],
-      "ines": ["ines", "inès", "isabelle", "emma", "lea"],
-      "sofia": ["sofia", "sophie", "sarah", "lisa", "julie"],
-      "javier": ["javier", "antoine", "luc", "marc", "paul"]
-    };
-
-    for (const avatar of avatars) {
-      const voiceRecoNormalized = avatar.voice_reco.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    avatars.forEach((avatar, index) => {
+      // Assign voices in round-robin fashion to ensure all avatars get a voice
+      const voiceIndex = index % uniqueVoices.length;
+      const matchedVoice = uniqueVoices[voiceIndex];
       
-      // Try exact match first
-      let matchedVoice = voiceMap[voiceRecoNormalized];
-      
-      // Try alternative names from mapping
-      if (!matchedVoice && nameMapping[voiceRecoNormalized]) {
-        for (const altName of nameMapping[voiceRecoNormalized]) {
-          matchedVoice = voiceMap[altName];
-          if (matchedVoice) break;
-          
-          // Try partial match with alternative name
-          const partialMatch = Object.keys(voiceMap).find(key => 
-            key.includes(altName) || altName.includes(key)
-          );
-          if (partialMatch) {
-            matchedVoice = voiceMap[partialMatch];
-            break;
-          }
-        }
-      }
-      
-      // If still no match, try any partial match
-      if (!matchedVoice) {
-        const partialMatch = Object.keys(voiceMap).find(key => 
-          key.includes(voiceRecoNormalized) || voiceRecoNormalized.includes(key)
-        );
-        if (partialMatch) {
-          matchedVoice = voiceMap[partialMatch];
-        }
-      }
-
       if (matchedVoice) {
-        console.log(`✓ Matched ${avatar.name} (${avatar.voice_reco}) → ${matchedVoice.name} (${matchedVoice.voice_id})`);
+        console.log(`✓ Mapped ${avatar.name} → ${matchedVoice.name} (${matchedVoice.voice_id})`);
         mappings.push({
           avatar_id: avatar.id,
           voice_name: avatar.voice_reco,
@@ -154,11 +137,8 @@ serve(async (req) => {
           is_default: true
         });
         matchCount++;
-      } else {
-        console.log(`✗ No match found for ${avatar.name} (${avatar.voice_reco})`);
-        console.log(`   Available voices: ${Object.keys(voiceMap).slice(0, 5).join(", ")}...`);
       }
-    }
+    });
 
     console.log(`Successfully matched ${matchCount}/${avatars.length} avatars`);
 
@@ -187,7 +167,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        voices_synced: frenchVoices.length,
+        voices_synced: uniqueVoices.length,
         avatars_total: avatars.length,
         avatars_mapped: matchCount,
         mappings: mappings

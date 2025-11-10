@@ -911,8 +911,39 @@ const Onboarding = () => {
                               variant="outline" 
                               size="sm" 
                               className="flex-1"
-                              onClick={() => {
-                                toast.info("Preview audio à venir");
+                              onClick={async () => {
+                                try {
+                                  // Fetch the voice mapping for this avatar
+                                  const { data: mapping } = await supabase
+                                    .from('avatar_voice_mapping')
+                                    .select('elevenlabs_voice_id')
+                                    .eq('avatar_id', avatar.id)
+                                    .single();
+                                  
+                                  if (!mapping?.elevenlabs_voice_id) {
+                                    toast.error("Aucune voix mappée pour cet avatar");
+                                    return;
+                                  }
+
+                                  // Fetch voice details
+                                  const { data: voice } = await supabase
+                                    .from('elevenlabs_voices')
+                                    .select('preview_url')
+                                    .eq('voice_id', mapping.elevenlabs_voice_id)
+                                    .single();
+                                  
+                                  if (!voice?.preview_url) {
+                                    toast.error("Preview audio non disponible");
+                                    return;
+                                  }
+
+                                  // Play the preview
+                                  const audio = new Audio(voice.preview_url);
+                                  audio.play();
+                                } catch (error) {
+                                  console.error('Error playing preview:', error);
+                                  toast.error("Erreur lors de la lecture");
+                                }
                               }}
                             >
                               <Volume2 className="h-3 w-3 mr-1" />
