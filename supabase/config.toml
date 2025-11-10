@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.generate-voice-sample]
 verify_jwt = true
+
+[functions.initialize-avatar-voices]
+verify_jwt = false
