@@ -23,16 +23,20 @@ serve(async (req) => {
       throw new Error("DEEPSEEK_API_KEY not configured");
     }
 
-    // Construire le prompt système
+    // Construire le prompt système - texte simple et direct
     const systemPrompt = customPrompt || `Tu es expert dans ${domain}. 
-Analyse les données suivantes et rédige un texte synthétique clair et professionnel destiné à un public non expert.
-Le texte doit durer environ 1 minute 30 à 2 minutes à l'oral (environ 200-300 mots).
-Utilise un ton professionnel mais accessible, avec des phrases courtes et un vocabulaire simple.
-Structure ton texte avec une introduction, les points clés, et une conclusion.`;
+Génère un texte fluide et naturel prêt à être lu à voix haute.
+
+RÈGLES STRICTES:
+- Réponds UNIQUEMENT avec le texte du brief
+- AUCUN formatage, AUCUN markdown, AUCUNE balise
+- Texte direct pour synthèse vocale
+- Style oral et conversationnel
+- 200-300 mots maximum`;
 
     console.log(`Generating brief text for domain: ${domain}`);
 
-    // Appel à l'API DeepSeek (compatible OpenAI SDK)
+    // Appel à l'API DeepSeek avec modèle rapide
     const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -40,13 +44,13 @@ Structure ton texte avec une introduction, les points clés, et une conclusion.`
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek-reasoner", // R1 - meilleur rapport qualité/prix
+        model: "deepseek-chat", // Modèle rapide
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }
         ],
         temperature: 0.7,
-        max_tokens: 800, // Suffisant pour 200-300 mots
+        max_tokens: 500, // 200-300 mots
       }),
     });
 
@@ -57,13 +61,7 @@ Structure ton texte avec une introduction, les points clés, et une conclusion.`
     }
 
     const result = await response.json();
-    let generatedText = result.choices[0].message.content;
-
-    // Nettoyer les balises markdown
-    generatedText = generatedText
-      .replace(/```json\s*/g, '')  // Supprimer ```json
-      .replace(/```\s*/g, '')       // Supprimer ```
-      .trim();                       // Enlever espaces inutiles
+    const generatedText = result.choices[0].message.content.trim();
 
     console.log("Brief text generated successfully");
     console.log(`Text length: ${generatedText.length} characters`);
@@ -71,7 +69,7 @@ Structure ton texte avec une introduction, les points clés, et une conclusion.`
     return new Response(
       JSON.stringify({ 
         text: generatedText,
-        model: "deepseek-reasoner",
+        model: "deepseek-chat",
         usage: result.usage 
       }),
       {

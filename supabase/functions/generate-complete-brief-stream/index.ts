@@ -169,45 +169,20 @@ serve(async (req) => {
 
         const systemPrompt = `Tu es ${avatar.name}, ${avatar.role}.
 
-**Ton rôle :** ${avatar.pitch}
+${avatar.pitch}
 
-**Ton expertise :** ${avatar.long_pitch}
+${avatar.long_pitch}
 
-**Ton ton :** ${preferences.tone} (${avatar.default_tone})
+Crée un brief audio de ${preferences.brief_duration || '2 minutes'} qui sera lu à voix haute.
 
-**Langue :** ${preferences.lang}
-
-**Contexte business :**
-- Modèle : ${preferences.business_model}
-- North Star Metric : ${preferences.north_star || "Non défini"}
-- Objectif : ${preferences.goal_value || "Non défini"} ${preferences.currency}
-
-**Ta mission :**
-Analyse les données KPI suivantes et rédis un brief audio structuré pour un dirigeant non-technique.
-
-**IMPORTANT : Réponds UNIQUEMENT avec du JSON pur, sans balises markdown, sans commentaires, sans texte avant ou après.**
-
-**Format attendu (JSON strict, pas de \`\`\`json, pas de \`\`\`) :**
-{
-  "introduction": "Phrase d'accroche (15-20 mots)",
-  "kpi_analysis": "Analyse des KPIs principaux (80-100 mots)",
-  "insights": "2-3 insights clés (60-80 mots)",
-  "actions": [
-    {
-      "title": "Action 1",
-      "why": "Raison (15 mots max)",
-      "how": "Comment faire (25 mots max)",
-      "priority": "high"
-    }
-  ],
-  "conclusion": "Phrase de conclusion motivante (15-20 mots)"
-}
-
-**Contraintes :**
-- Durée orale cible : 1min30 à 2min (200-300 mots total)
-- Langage simple, pas de jargon
-- 3 actions concrètes maximum
-- Chiffres clairs et comparatifs si possible`;
+RÈGLES:
+- Réponds UNIQUEMENT avec le texte du brief
+- Ton ${preferences.tone || 'professionnel'}
+- Style oral et conversationnel
+- Langue: ${preferences.lang}
+- 200-300 mots maximum
+${preferences.focus_topics?.length ? `\n- Focus sur: ${preferences.focus_topics.join(', ')}` : ''}
+${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : ''}`;
 
         const userPrompt = `Voici les données de la semaine ${weekStart} :\n\n${JSON.stringify(filteredData, null, 2)}`;
 
@@ -228,9 +203,10 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
         }
 
         const deepseekResult = deepseekResponse.data;
-        const briefText = deepseekResult.text;
+        const narrativeText = deepseekResult.text;
+        const wordCount = narrativeText.split(/\s+/).length;
         
-        sendLog({ timestamp: Date.now(), type: "info", icon: "  └─", message: "Modèle: deepseek-reasoner" });
+        sendLog({ timestamp: Date.now(), type: "info", icon: "  └─", message: `Modèle: ${deepseekResult.model}` });
         if (deepseekResult.usage) {
           sendLog({ 
             timestamp: Date.now(), 
@@ -239,102 +215,14 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
             message: `Tokens: ${deepseekResult.usage.prompt_tokens} (input) + ${deepseekResult.usage.completion_tokens} (output)` 
           });
         }
-        sendLog({ timestamp: Date.now(), type: "success", icon: "✅", message: "Brief généré", details: `${briefText.length} caractères` });
+        sendLog({ timestamp: Date.now(), type: "success", icon: "✅", message: "Brief généré", details: `${narrativeText.length} caractères, ${wordCount} mots` });
 
-    // Parser le JSON du brief
-    let parsedBrief;
-    try {
-      // Nettoyer une dernière fois avant parsing (sécurité)
-      const cleanedBriefText = briefText
-        .replace(/```json\s*/g, '')
-        .replace(/```\s*/g, '')
-        .trim();
-      
-      parsedBrief = JSON.parse(cleanedBriefText);
-      
-      // Valider que tous les champs requis sont présents
-      if (!parsedBrief.introduction || !parsedBrief.kpi_analysis) {
-        throw new Error("Missing required fields in brief");
-      }
-      
-      sendLog({ 
-        timestamp: Date.now(), 
-        type: "success", 
-        icon: "✅", 
-        message: "JSON validé avec succès" 
-      });
-      
-    } catch (parseError) {
-      sendLog({ 
-        timestamp: Date.now(), 
-        type: "error", 
-        icon: "⚠️", 
-        message: "Échec du parsing JSON", 
-        details: parseError instanceof Error ? parseError.message : "Unknown error" 
-      });
-      
-      // Fallback : créer une structure basique
-      parsedBrief = {
-        introduction: "Voici votre brief hebdomadaire.",
-        kpi_analysis: briefText.substring(0, 500),
-        insights: "",
-        actions: [],
-        conclusion: "Merci de votre attention.",
-      };
-    }
+        // Étape 6: Génération de l'audio avec ElevenLabs
+        sendLog({ timestamp: Date.now(), type: "info", icon: "🎤", message: "Génération audio..." });
 
-    // Étape 6: Génération de l'audio avec ElevenLabs
-    sendLog({ timestamp: Date.now(), type: "info", icon: "🎙️", message: "Construction du texte narratif..." });
-
-    // Construire le texte de manière narrative pure (sans JSON)
-    let fullText = "";
-
-    if (parsedBrief.introduction) {
-      fullText += parsedBrief.introduction + "\n\n";
-    }
-
-    if (parsedBrief.kpi_analysis) {
-      fullText += parsedBrief.kpi_analysis + "\n\n";
-    }
-
-    if (parsedBrief.insights) {
-      fullText += parsedBrief.insights + "\n\n";
-    }
-
-    // Ajouter les actions de manière narrative (pas JSON)
-    if (parsedBrief.actions && parsedBrief.actions.length > 0) {
-      fullText += "Voici mes recommandations : \n\n";
-      parsedBrief.actions.forEach((action: any, index: number) => {
-        fullText += `${index + 1}. ${action.title}. ${action.why} ${action.how}\n\n`;
-      });
-    }
-
-    if (parsedBrief.conclusion) {
-      fullText += parsedBrief.conclusion;
-    }
-
-    // Nettoyer une dernière fois (sécurité)
-    fullText = fullText
-      .replace(/\{/g, '')
-      .replace(/\}/g, '')
-      .replace(/"/g, '')
-      .replace(/\[/g, '')
-      .replace(/\]/g, '')
-      .trim();
-
-    sendLog({ 
-      timestamp: Date.now(), 
-      type: "success", 
-      icon: "📝", 
-      message: "Texte narratif construit", 
-      details: `${fullText.length} caractères, ${fullText.split(' ').length} mots` 
-    });
-
-    console.log("=== TEXTE ENVOYÉ À ELEVENLABS ===");
-    console.log(fullText);
-    console.log("=== FIN TEXTE ===");
-
-    sendLog({ timestamp: Date.now(), type: "info", icon: "🎤", message: "Génération audio..." });
+        console.log("=== TEXTE ENVOYÉ À ELEVENLABS ===");
+        console.log(narrativeText);
+        console.log("=== FIN TEXTE ===");
 
         const elevenLabsResponse = await fetch(
           `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
@@ -345,7 +233,7 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              text: fullText,
+              text: narrativeText,
               model_id: "eleven_multilingual_v2",
               voice_settings: {
                 stability: 0.65,
@@ -388,9 +276,9 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
           .insert({
             user_id: user.id,
             week_start: weekStart,
-            script_text: briefText,
+            script_text: narrativeText,
             audio_url: audioUrl,
-            actions_json: parsedBrief.actions || [],
+            actions_json: [],
             facts_json: {
               total_records: totalRecords,
               filtered_records: filteredRecords,
@@ -417,7 +305,7 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
         sendResult({
           success: true,
           brief_id: briefData.id,
-          brief_text: parsedBrief,
+          brief_text: narrativeText,
           audio_url: audioUrl,
           metadata: {
             total_records: totalRecords,
