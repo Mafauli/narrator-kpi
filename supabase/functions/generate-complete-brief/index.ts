@@ -238,9 +238,19 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
       throw new Error("Failed to generate voice sample");
     }
 
-    // Convertir l'audio en base64
+    // Convertir l'audio en base64 par chunks pour éviter stack overflow
     const audioBuffer = await elevenLabsResponse.arrayBuffer();
-    const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    const bytes = new Uint8Array(audioBuffer);
+    
+    // Convertir par chunks de 32KB pour éviter "Maximum call stack size exceeded"
+    const chunkSize = 32 * 1024;
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.slice(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    
+    const audioBase64 = btoa(binary);
     const audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
 
     addLog("info", "  └─", `Voix: ${voice?.name || voiceId}`);
