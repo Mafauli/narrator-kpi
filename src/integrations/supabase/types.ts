@@ -267,6 +267,8 @@ export type Database = {
           kpi_pack_json: Json | null
           lang: string
           north_star: string | null
+          phone_number: string | null
+          phone_verified: boolean | null
           send_dow: number
           send_hour: number
           thresholds_json: Json | null
@@ -286,6 +288,8 @@ export type Database = {
           kpi_pack_json?: Json | null
           lang?: string
           north_star?: string | null
+          phone_number?: string | null
+          phone_verified?: boolean | null
           send_dow?: number
           send_hour?: number
           thresholds_json?: Json | null
@@ -305,6 +309,8 @@ export type Database = {
           kpi_pack_json?: Json | null
           lang?: string
           north_star?: string | null
+          phone_number?: string | null
+          phone_verified?: boolean | null
           send_dow?: number
           send_hour?: number
           thresholds_json?: Json | null
@@ -324,12 +330,133 @@ export type Database = {
           },
         ]
       }
+      scheduled_briefs: {
+        Row: {
+          created_at: string
+          day_of_month: number | null
+          day_of_week: number | null
+          delivery_method: string
+          hour: number
+          id: string
+          is_active: boolean
+          last_sent_at: string | null
+          minute: number
+          next_send_at: string | null
+          phone_number: string | null
+          schedule_type: string
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          delivery_method?: string
+          hour?: number
+          id?: string
+          is_active?: boolean
+          last_sent_at?: string | null
+          minute?: number
+          next_send_at?: string | null
+          phone_number?: string | null
+          schedule_type?: string
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          delivery_method?: string
+          hour?: number
+          id?: string
+          is_active?: boolean
+          last_sent_at?: string | null
+          minute?: number
+          next_send_at?: string | null
+          phone_number?: string | null
+          schedule_type?: string
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_deliveries: {
+        Row: {
+          brief_id: string
+          created_at: string
+          delivered_at: string | null
+          error_message: string | null
+          id: string
+          message_id: string | null
+          phone_number: string
+          read_at: string | null
+          retry_count: number
+          sent_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brief_id: string
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          phone_number: string
+          read_at?: string | null
+          retry_count?: number
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brief_id?: string
+          created_at?: string
+          delivered_at?: string | null
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          phone_number?: string
+          read_at?: string | null
+          retry_count?: number
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_deliveries_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "briefs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_next_send_at: {
+        Args: {
+          day_of_month: number
+          day_of_week: number
+          from_timestamp?: string
+          hour: number
+          minute: number
+          schedule_type: string
+          timezone: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       business_model: "saas" | "ecommerce" | "services" | "other"
