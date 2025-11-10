@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Play, Download } from "lucide-react";
@@ -8,6 +8,12 @@ import { Badge } from "@/components/ui/badge";
 
 const TestBriefGeneration = () => {
   const { generating, logs, result, generateBrief } = useBriefGeneration();
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll vers le dernier log
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs]);
 
   const handleGenerate = async () => {
     await generateBrief();
@@ -99,14 +105,14 @@ const TestBriefGeneration = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 font-mono text-sm">
+              <div className="space-y-1 font-mono text-sm max-h-[500px] overflow-y-auto">
                 {logs.map((log, index) => (
                   <div
                     key={index}
-                    className={`flex items-start gap-3 ${getLogColor(log.type)}`}
+                    className={`flex items-start gap-3 py-1 px-2 rounded ${getLogColor(log.type)} animate-in fade-in slide-in-from-left-2 duration-200`}
                   >
-                    <span className="text-base">{log.icon}</span>
-                    <div className="flex-1">
+                    <span className="text-base flex-shrink-0">{log.icon}</span>
+                    <div className="flex-1 min-w-0">
                       <span className="font-medium">{log.message}</span>
                       {log.details && (
                         <span className="ml-2 text-xs opacity-70">
@@ -114,8 +120,22 @@ const TestBriefGeneration = () => {
                         </span>
                       )}
                     </div>
+                    <span className="text-xs opacity-50 flex-shrink-0">
+                      {new Date(log.timestamp).toLocaleTimeString('fr-FR', { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit' 
+                      })}
+                    </span>
                   </div>
                 ))}
+                <div ref={logsEndRef} />
+                {generating && logs.length > 0 && (
+                  <div className="flex items-center gap-2 text-muted-foreground py-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Génération en cours...</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
