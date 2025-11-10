@@ -59,6 +59,54 @@ export type Database = {
         }
         Relationships: []
       }
+      avatars: {
+        Row: {
+          best_for: string[]
+          created_at: string
+          default_tone: string
+          example_actions: string[]
+          id: string
+          image_prompt: string
+          image_url: string | null
+          long_pitch: string
+          name: string
+          pitch: string
+          role: string
+          skills: string[]
+          voice_reco: string
+        }
+        Insert: {
+          best_for: string[]
+          created_at?: string
+          default_tone: string
+          example_actions: string[]
+          id: string
+          image_prompt: string
+          image_url?: string | null
+          long_pitch: string
+          name: string
+          pitch: string
+          role: string
+          skills: string[]
+          voice_reco: string
+        }
+        Update: {
+          best_for?: string[]
+          created_at?: string
+          default_tone?: string
+          example_actions?: string[]
+          id?: string
+          image_prompt?: string
+          image_url?: string | null
+          long_pitch?: string
+          name?: string
+          pitch?: string
+          role?: string
+          skills?: string[]
+          voice_reco?: string
+        }
+        Relationships: []
+      }
       briefs: {
         Row: {
           actions_json: Json | null
@@ -133,6 +181,8 @@ export type Database = {
       }
       preferences: {
         Row: {
+          avatar_id: string | null
+          avatar_sectors: string[] | null
           business_model: Database["public"]["Enums"]["business_model"]
           created_at: string
           currency: string
@@ -147,8 +197,11 @@ export type Database = {
           tone: Database["public"]["Enums"]["tone_type"]
           updated_at: string
           user_id: string
+          voice_id: string | null
         }
         Insert: {
+          avatar_id?: string | null
+          avatar_sectors?: string[] | null
           business_model?: Database["public"]["Enums"]["business_model"]
           created_at?: string
           currency?: string
@@ -163,8 +216,11 @@ export type Database = {
           tone?: Database["public"]["Enums"]["tone_type"]
           updated_at?: string
           user_id: string
+          voice_id?: string | null
         }
         Update: {
+          avatar_id?: string | null
+          avatar_sectors?: string[] | null
           business_model?: Database["public"]["Enums"]["business_model"]
           created_at?: string
           currency?: string
@@ -179,8 +235,17 @@ export type Database = {
           tone?: Database["public"]["Enums"]["tone_type"]
           updated_at?: string
           user_id?: string
+          voice_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "preferences_avatar_id_fkey"
+            columns: ["avatar_id"]
+            isOneToOne: false
+            referencedRelation: "avatars"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

@@ -8,9 +8,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Play, Database, Settings, Sparkles, HelpCircle, ChevronDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Play, Database, Settings, Sparkles, HelpCircle, ChevronDown, User, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+
+// Avatar images
+import leoAvatar from "@/assets/avatars/leo.png";
+import emmaAvatar from "@/assets/avatars/emma.png";
+import inesAvatar from "@/assets/avatars/ines.png";
+import sofiaAvatar from "@/assets/avatars/sofia.png";
+import javierAvatar from "@/assets/avatars/javier.png";
+import mayaAvatar from "@/assets/avatars/maya.png";
+import noahAvatar from "@/assets/avatars/noah.png";
+import anaAvatar from "@/assets/avatars/ana.png";
+
+const avatarImages: Record<string, string> = {
+  'ceo_alpha': leoAvatar,
+  'cfo_delta': emmaAvatar,
+  'cmo_nova': inesAvatar,
+  'coo_orion': sofiaAvatar,
+  'sales_zenith': javierAvatar,
+  'ecom_lumen': mayaAvatar,
+  'cs_aurora': noahAvatar,
+  'ops_legal': anaAvatar
+};
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -50,7 +72,7 @@ const Onboarding = () => {
     const stepParam = searchParams.get('step');
     if (stepParam) {
       const stepNumber = parseInt(stepParam);
-      if (stepNumber >= 1 && stepNumber <= 4) {
+      if (stepNumber >= 1 && stepNumber <= 5) {
         setStep(stepNumber);
         // If going to step 2 or later, ensure Airtable is connected
         if (stepNumber >= 2) {
@@ -103,6 +125,12 @@ const Onboarding = () => {
         setNorthStar(prefsData.north_star || 'MRR');
         setGoalValue(prefsData.goal_value?.toString() || '10');
         setTone(prefsData.tone || 'no-bs');
+        
+        // Load avatar if exists
+        if (prefsData.avatar_id) {
+          setSelectedVoice(prefsData.voice_id || '');
+        }
+        
         console.log('✅ Loaded existing preferences');
       }
 
@@ -127,6 +155,26 @@ const Onboarding = () => {
             const firstBase = viewsData[0].base_id;
             setSelectedBase(firstBase);
             await fetchTables(firstBase);
+          }
+        }
+      }
+
+      // Load avatars
+      const { data: avatarsData } = await supabase
+        .from('avatars')
+        .select('*')
+        .order('created_at');
+
+      if (avatarsData) {
+        setAvatars(avatarsData);
+        console.log('✅ Loaded avatars:', avatarsData.length);
+        
+        // Pre-select avatar if exists in preferences
+        if (prefsData?.avatar_id) {
+          const avatar = avatarsData.find(a => a.id === prefsData.avatar_id);
+          if (avatar) {
+            setSelectedAvatar(avatar);
+            console.log('✅ Pre-selected avatar:', avatar.name);
           }
         }
       }
@@ -256,6 +304,13 @@ const Onboarding = () => {
   const [goalValue, setGoalValue] = useState("10");
   const [tone, setTone] = useState<"sobre" | "coach" | "energique" | "no-bs">("no-bs");
 
+  // Step 4: Avatar selection
+  const [avatars, setAvatars] = useState<any[]>([]);
+  const [selectedAvatar, setSelectedAvatar] = useState<any>(null);
+  const [avatarSectorFilter, setAvatarSectorFilter] = useState<string>("");
+  const [avatarToneFilter, setAvatarToneFilter] = useState<string>("");
+  const [selectedVoice, setSelectedVoice] = useState<string>("");
+
   const handleConnectAirtable = async () => {
     setIsLoading(true);
     try {
@@ -336,16 +391,44 @@ const Onboarding = () => {
     navigate("/app");
   };
 
+  const handleSaveAvatar = async () => {
+    if (!selectedAvatar) {
+      toast.error("Sélectionne un avatar");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Non connecté");
+
+      const { error } = await supabase.from("preferences").update({
+        avatar_id: selectedAvatar.id,
+        voice_id: selectedVoice || selectedAvatar.voice_reco,
+        avatar_sectors: selectedAvatar.best_for
+      }).eq("user_id", user.id);
+
+      if (error) throw error;
+
+      toast.success("Avatar enregistré !");
+      setStep(5);
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors de l'enregistrement");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center gap-4 mb-8">
-      {[1, 2, 3, 4].map((i) => (
+      {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} className="flex items-center gap-2">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
             step >= i ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground"
           }`}>
             {i}
           </div>
-          {i < 4 && <div className={`w-12 h-1 ${step > i ? "bg-accent" : "bg-muted"}`} />}
+          {i < 5 && <div className={`w-12 h-1 ${step > i ? "bg-accent" : "bg-muted"}`} />}
         </div>
       ))}
     </div>
@@ -741,8 +824,150 @@ const Onboarding = () => {
             </Card>
           )}
 
-          {/* Step 4: Preview */}
+          {/* Step 4: Avatar selection */}
           {step === 4 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2 text-accent mb-2">
+                  <User className="h-5 w-5" />
+                  <CardTitle>Choisis ton avatar</CardTitle>
+                </div>
+                <CardDescription>
+                  Sélectionne l'avatar qui t'accompagnera dans tes briefs hebdomadaires
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Filters */}
+                <div className="flex gap-4">
+                  <Select value={avatarSectorFilter} onValueChange={setAvatarSectorFilter}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Tous les secteurs" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Tous les secteurs</SelectItem>
+                      <SelectItem value="saas">SaaS</SelectItem>
+                      <SelectItem value="ecom">E-commerce</SelectItem>
+                      <SelectItem value="services">Services</SelectItem>
+                      <SelectItem value="agences">Agence</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={avatarToneFilter} onValueChange={setAvatarToneFilter}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Tous les tons" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Tous les tons</SelectItem>
+                      <SelectItem value="sobre">Sobre</SelectItem>
+                      <SelectItem value="coach">Coach</SelectItem>
+                      <SelectItem value="no-bs">No-BS</SelectItem>
+                      <SelectItem value="energique">Énergique</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Avatar Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {avatars
+                    .filter(avatar => !avatarSectorFilter || avatar.best_for.includes(avatarSectorFilter))
+                    .filter(avatar => !avatarToneFilter || avatar.default_tone === avatarToneFilter)
+                    .map((avatar) => (
+                      <Card key={avatar.id} className={`cursor-pointer transition-all hover:shadow-md ${
+                        selectedAvatar?.id === avatar.id ? 'ring-2 ring-accent' : ''
+                      }`}>
+                        <CardContent className="p-4 space-y-3">
+                          <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                            <img 
+                              src={avatarImages[avatar.id]} 
+                              alt={avatar.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold">{avatar.name}</h3>
+                            <p className="text-sm text-muted-foreground">{avatar.role}</p>
+                          </div>
+                          <p className="text-sm line-clamp-2">{avatar.pitch}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {avatar.skills.slice(0, 3).map((skill: string, i: number) => (
+                              <Badge key={i} variant="secondary" className="text-xs">
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="flex-1"
+                              onClick={() => {
+                                toast.info("Preview audio à venir");
+                              }}
+                            >
+                              <Volume2 className="h-3 w-3 mr-1" />
+                              Aperçu
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              className="flex-1 bg-accent hover:bg-accent/90"
+                              onClick={() => {
+                                setSelectedAvatar(avatar);
+                                setSelectedVoice(avatar.voice_reco);
+                              }}
+                            >
+                              {selectedAvatar?.id === avatar.id ? 'Sélectionné' : 'Choisir'}
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
+
+                {/* Selected avatar detail panel */}
+                {selectedAvatar && (
+                  <Card className="bg-accent/5 border-accent/20">
+                    <CardContent className="p-6 space-y-4">
+                      <h3 className="font-semibold text-lg">Détails de {selectedAvatar.name}</h3>
+                      <p className="text-sm">{selectedAvatar.long_pitch}</p>
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Compétences clés</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedAvatar.skills.map((skill: string, i: number) => (
+                            <Badge key={i} variant="outline">{skill}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Exemples d'actions</h4>
+                        <ul className="space-y-1 text-sm">
+                          {selectedAvatar.example_actions.map((action: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="text-accent mt-1">•</span>
+                              <span>{action}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Voix recommandée</h4>
+                        <Badge>{selectedAvatar.voice_reco}</Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Button 
+                  onClick={handleSaveAvatar} 
+                  className="w-full bg-accent hover:bg-accent/90"
+                  disabled={isLoading || !selectedAvatar}
+                >
+                  {isLoading ? "Enregistrement..." : "Continuer"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 5: Preview */}
+          {step === 5 && (
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2 text-accent mb-2">
@@ -754,6 +979,26 @@ const Onboarding = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {selectedAvatar && (
+                  <div className="bg-secondary/30 rounded-lg p-6 space-y-4">
+                    <h3 className="font-semibold">Ton avatar</h3>
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-full overflow-hidden">
+                        <img 
+                          src={avatarImages[selectedAvatar.id]} 
+                          alt={selectedAvatar.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{selectedAvatar.name}</p>
+                        <p className="text-sm text-muted-foreground">{selectedAvatar.role}</p>
+                        <Badge variant="secondary" className="mt-1">{selectedAvatar.voice_reco}</Badge>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="bg-secondary/30 rounded-lg p-6 space-y-4">
                   <h3 className="font-semibold">Récapitulatif</h3>
                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -772,6 +1017,10 @@ const Onboarding = () => {
                     <div>
                       <span className="text-muted-foreground">Ton :</span>
                       <span className="ml-2 font-medium">{tone}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Vues Airtable :</span>
+                      <span className="ml-2 font-medium">{selectedViews.length} vue{selectedViews.length > 1 ? 's' : ''} sélectionnée{selectedViews.length > 1 ? 's' : ''}</span>
                     </div>
                   </div>
                 </div>
