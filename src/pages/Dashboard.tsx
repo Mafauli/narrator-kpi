@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Play, Settings, Database, LogOut } from "lucide-react";
+import { Calendar, Play, Settings, Database, LogOut, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
@@ -70,6 +70,12 @@ const Dashboard = () => {
             <span className="text-xl font-bold">KPI Narrator</span>
           </div>
           <nav className="flex items-center gap-4">
+            <Link to="/app/test-brief-generation">
+              <Button variant="ghost" size="sm">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Test Brief
+              </Button>
+            </Link>
             <Link to="/app/settings">
               <Button variant="ghost" size="sm">
                 <Settings className="h-4 w-4 mr-2" />
