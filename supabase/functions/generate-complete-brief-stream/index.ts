@@ -185,7 +185,9 @@ serve(async (req) => {
 **Ta mission :**
 Analyse les données KPI suivantes et rédis un brief audio structuré pour un dirigeant non-technique.
 
-**Format attendu (réponse JSON stricte) :**
+**IMPORTANT : Réponds UNIQUEMENT avec du JSON pur, sans balises markdown, sans commentaires, sans texte avant ou après.**
+
+**Format attendu (JSON strict, pas de \`\`\`json, pas de \`\`\`) :**
 {
   "introduction": "Phrase d'accroche (15-20 mots)",
   "kpi_analysis": "Analyse des KPIs principaux (80-100 mots)",
@@ -239,24 +241,100 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
         }
         sendLog({ timestamp: Date.now(), type: "success", icon: "✅", message: "Brief généré", details: `${briefText.length} caractères` });
 
-        // Parser le JSON du brief
-        let parsedBrief;
-        try {
-          parsedBrief = JSON.parse(briefText);
-        } catch {
-          parsedBrief = {
-            introduction: briefText.substring(0, 100),
-            kpi_analysis: briefText,
-            insights: "",
-            actions: [],
-            conclusion: "",
-          };
-        }
+    // Parser le JSON du brief
+    let parsedBrief;
+    try {
+      // Nettoyer une dernière fois avant parsing (sécurité)
+      const cleanedBriefText = briefText
+        .replace(/```json\s*/g, '')
+        .replace(/```\s*/g, '')
+        .trim();
+      
+      parsedBrief = JSON.parse(cleanedBriefText);
+      
+      // Valider que tous les champs requis sont présents
+      if (!parsedBrief.introduction || !parsedBrief.kpi_analysis) {
+        throw new Error("Missing required fields in brief");
+      }
+      
+      sendLog({ 
+        timestamp: Date.now(), 
+        type: "success", 
+        icon: "✅", 
+        message: "JSON validé avec succès" 
+      });
+      
+    } catch (parseError) {
+      sendLog({ 
+        timestamp: Date.now(), 
+        type: "error", 
+        icon: "⚠️", 
+        message: "Échec du parsing JSON", 
+        details: parseError instanceof Error ? parseError.message : "Unknown error" 
+      });
+      
+      // Fallback : créer une structure basique
+      parsedBrief = {
+        introduction: "Voici votre brief hebdomadaire.",
+        kpi_analysis: briefText.substring(0, 500),
+        insights: "",
+        actions: [],
+        conclusion: "Merci de votre attention.",
+      };
+    }
 
-        // Étape 6: Génération de l'audio avec ElevenLabs
-        sendLog({ timestamp: Date.now(), type: "info", icon: "🎙️", message: "Génération audio avec ElevenLabs..." });
+    // Étape 6: Génération de l'audio avec ElevenLabs
+    sendLog({ timestamp: Date.now(), type: "info", icon: "🎙️", message: "Construction du texte narratif..." });
 
-        const fullText = `${parsedBrief.introduction || ""}\n\n${parsedBrief.kpi_analysis || ""}\n\n${parsedBrief.insights || ""}\n\n${parsedBrief.conclusion || ""}`;
+    // Construire le texte de manière narrative pure (sans JSON)
+    let fullText = "";
+
+    if (parsedBrief.introduction) {
+      fullText += parsedBrief.introduction + "\n\n";
+    }
+
+    if (parsedBrief.kpi_analysis) {
+      fullText += parsedBrief.kpi_analysis + "\n\n";
+    }
+
+    if (parsedBrief.insights) {
+      fullText += parsedBrief.insights + "\n\n";
+    }
+
+    // Ajouter les actions de manière narrative (pas JSON)
+    if (parsedBrief.actions && parsedBrief.actions.length > 0) {
+      fullText += "Voici mes recommandations : \n\n";
+      parsedBrief.actions.forEach((action: any, index: number) => {
+        fullText += `${index + 1}. ${action.title}. ${action.why} ${action.how}\n\n`;
+      });
+    }
+
+    if (parsedBrief.conclusion) {
+      fullText += parsedBrief.conclusion;
+    }
+
+    // Nettoyer une dernière fois (sécurité)
+    fullText = fullText
+      .replace(/\{/g, '')
+      .replace(/\}/g, '')
+      .replace(/"/g, '')
+      .replace(/\[/g, '')
+      .replace(/\]/g, '')
+      .trim();
+
+    sendLog({ 
+      timestamp: Date.now(), 
+      type: "success", 
+      icon: "📝", 
+      message: "Texte narratif construit", 
+      details: `${fullText.length} caractères, ${fullText.split(' ').length} mots` 
+    });
+
+    console.log("=== TEXTE ENVOYÉ À ELEVENLABS ===");
+    console.log(fullText);
+    console.log("=== FIN TEXTE ===");
+
+    sendLog({ timestamp: Date.now(), type: "info", icon: "🎤", message: "Génération audio..." });
 
         const elevenLabsResponse = await fetch(
           `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
@@ -270,8 +348,10 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
               text: fullText,
               model_id: "eleven_multilingual_v2",
               voice_settings: {
-                stability: 0.5,
-                similarity_boost: 0.75
+                stability: 0.65,
+                similarity_boost: 0.8,
+                style: 0.3,
+                use_speaker_boost: true
               }
             })
           }

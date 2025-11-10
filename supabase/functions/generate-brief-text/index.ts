@@ -57,7 +57,13 @@ Structure ton texte avec une introduction, les points clés, et une conclusion.`
     }
 
     const result = await response.json();
-    const generatedText = result.choices[0].message.content;
+    let generatedText = result.choices[0].message.content;
+
+    // Nettoyer les balises markdown
+    generatedText = generatedText
+      .replace(/```json\s*/g, '')  // Supprimer ```json
+      .replace(/```\s*/g, '')       // Supprimer ```
+      .trim();                       // Enlever espaces inutiles
 
     console.log("Brief text generated successfully");
     console.log(`Text length: ${generatedText.length} characters`);
