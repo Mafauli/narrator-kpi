@@ -188,13 +188,22 @@ const Onboarding = () => {
 
       console.log('✅ OAuth URL received:', data.authUrl);
 
-      // Redirect to OAuth - use window.top to escape iframe
-      console.log('🔄 Redirecting to Airtable...');
-      if (window.top) {
-        window.top.location.href = data.authUrl;
-      } else {
-        window.location.href = data.authUrl;
+      // Open OAuth in popup window
+      console.log('🔄 Opening Airtable OAuth popup...');
+      const popup = window.open(
+        data.authUrl,
+        'airtable-oauth',
+        'width=600,height=700,scrollbars=yes'
+      );
+      
+      if (!popup) {
+        toast.error("Popup bloquée ! Active les popups et réessaye.");
+        setIsLoading(false);
+        return;
       }
+      
+      // Reset loading state immediately since we're using a popup
+      setIsLoading(false);
     } catch (error: any) {
       console.error('❌ Error in handleConnectAirtable:', error);
       toast.error(error.message || "Erreur lors de la connexion");
