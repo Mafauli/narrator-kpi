@@ -26,3 +26,6 @@ verify_jwt = true
 
 [functions.generate-complete-brief-stream]
 verify_jwt = true
+
+[functions.send-whatsapp-brief]
+verify_jwt = true
