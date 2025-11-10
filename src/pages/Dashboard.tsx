@@ -105,11 +105,11 @@ const Dashboard = () => {
               <span className="text-muted-foreground">à {nextBrief.time}</span>
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => navigate("/app/onboarding?step=2")}>
                 <Database className="h-4 w-4 mr-2" />
                 Gérer les vues
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => navigate("/app/onboarding?step=3")}>
                 <Settings className="h-4 w-4 mr-2" />
                 Modifier préférences
               </Button>

@@ -45,6 +45,20 @@ const Onboarding = () => {
       // Fetch bases immediately after connection
       fetchBases();
     }
+    
+    // Handle direct step navigation from URL
+    const stepParam = searchParams.get('step');
+    if (stepParam) {
+      const stepNumber = parseInt(stepParam);
+      if (stepNumber >= 1 && stepNumber <= 4) {
+        setStep(stepNumber);
+        // If going to step 2 or later, ensure Airtable is connected
+        if (stepNumber >= 2) {
+          setAirtableConnected(true);
+          fetchBases();
+        }
+      }
+    }
   }, [searchParams, setSearchParams]);
 
   const fetchBases = async () => {
