@@ -6,6 +6,43 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper function to ensure valid Airtable token (with auto-refresh)
+async function ensureValidToken(
+  supabase: any,
+  userId: string,
+  authHeader: string,
+  connection: any
+): Promise<string> {
+  const isExpired = connection.expires_at && new Date(connection.expires_at) < new Date();
+  
+  if (!isExpired) {
+    return connection.access_token_encrypted;
+  }
+
+  console.log("Token expired, refreshing...");
+  
+  const refreshResponse = await supabase.functions.invoke("airtable-refresh-token", {
+    headers: { Authorization: authHeader }
+  });
+  
+  if (refreshResponse.error || !refreshResponse.data?.success) {
+    throw new Error("Failed to refresh Airtable token");
+  }
+  
+  // Fetch the new token
+  const { data: newConnection, error: fetchError } = await supabase
+    .from("connections_airtable")
+    .select("access_token_encrypted")
+    .eq("user_id", userId)
+    .single();
+    
+  if (fetchError || !newConnection) {
+    throw new Error("Failed to retrieve refreshed token");
+  }
+  
+  return newConnection.access_token_encrypted;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -62,52 +99,28 @@ serve(async (req) => {
     if (connError || !connection) {
       return new Response(
         JSON.stringify({ 
-          error: "Airtable connection not found",
+          error: "No Airtable connection found for this user",
           error_type: "no_connection",
+          message: "Please reconnect your Airtable account"
+        }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Use helper function to ensure valid token
+    let accessToken: string;
+    try {
+      accessToken = await ensureValidToken(supabase, user.id, authHeader, connection);
+    } catch (refreshError) {
+      console.error("Failed to ensure valid token:", refreshError);
+      return new Response(
+        JSON.stringify({ 
+          error: "Airtable authentication expired",
+          error_type: "token_expired",
           message: "Please reconnect your Airtable account"
         }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-    }
-
-    let accessToken = connection.access_token_encrypted;
-    
-    // Vérifier si le token est expiré
-    const isTokenExpired = connection.expires_at && new Date(connection.expires_at) < new Date();
-    if (isTokenExpired) {
-      console.log("Token expired, attempting to refresh...");
-      
-      try {
-        const refreshResponse = await supabase.functions.invoke("airtable-refresh-token", {
-          headers: { Authorization: authHeader }
-        });
-
-        if (refreshResponse.error || !refreshResponse.data?.success) {
-          throw new Error("Token refresh failed");
-        }
-
-        // Récupérer le nouveau token
-        const { data: newConnection } = await supabase
-          .from("connections_airtable")
-          .select("access_token_encrypted")
-          .eq("user_id", user.id)
-          .single();
-
-        if (newConnection) {
-          accessToken = newConnection.access_token_encrypted;
-          console.log("Token refreshed successfully");
-        }
-      } catch (refreshError) {
-        console.error("Failed to refresh token:", refreshError);
-        return new Response(
-          JSON.stringify({ 
-            error: "Airtable authentication expired",
-            error_type: "token_expired",
-            message: "Please reconnect your Airtable account"
-          }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
     }
 
     // Récupérer les données de chaque vue
@@ -140,62 +153,40 @@ serve(async (req) => {
             console.log("Received 401, attempting token refresh...");
             
             try {
-              const refreshResponse = await supabase.functions.invoke("airtable-refresh-token", {
-                headers: { Authorization: authHeader }
+              // Force token refresh by passing expired connection
+              accessToken = await ensureValidToken(supabase, user.id, authHeader, {
+                ...connection,
+                expires_at: new Date(0).toISOString() // Force refresh
+              });
+              
+              // Réessayer la requête avec le nouveau token
+              const retryResponse = await fetch(url, {
+                headers: {
+                  "Authorization": `Bearer ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
               });
 
-              if (refreshResponse.data?.success) {
-                // Récupérer le nouveau token et réessayer
-                const { data: newConnection } = await supabase
-                  .from("connections_airtable")
-                  .select("access_token_encrypted")
-                  .eq("user_id", user.id)
-                  .single();
+              if (retryResponse.ok) {
+                const retryData = await retryResponse.json();
+                const retryRecords = retryData.records || [];
 
-                if (newConnection) {
-                  accessToken = newConnection.access_token_encrypted;
-                  
-                  // Réessayer la requête avec le nouveau token
-                  const retryResponse = await fetch(url, {
-                    headers: {
-                      "Authorization": `Bearer ${accessToken}`,
-                      "Content-Type": "application/json",
-                    },
-                  });
+                viewsData.push({
+                  base_name: view.base_name,
+                  table_name: view.table_name,
+                  view_name: view.view_name,
+                  records: retryRecords,
+                  record_count: retryRecords.length,
+                });
 
-                  if (retryResponse.ok) {
-                    const retryData = await retryResponse.json();
-                    const retryRecords = retryData.records || [];
-
-                    viewsData.push({
-                      base_name: view.base_name,
-                      table_name: view.table_name,
-                      view_name: view.view_name,
-                      records: retryRecords,
-                      record_count: retryRecords.length,
-                    });
-
-                    totalRecords += retryRecords.length;
-                    console.log(`Retrieved ${retryRecords.length} records from ${view.view_name} after token refresh`);
-                    continue;
-                  }
-                }
+                totalRecords += retryRecords.length;
+                console.log(`Retrieved ${retryRecords.length} records from ${view.view_name} after token refresh`);
+                continue;
               }
             } catch (refreshError) {
-              console.error("Token refresh failed:", refreshError);
+              console.error("Failed to refresh token during retry:", refreshError);
+              continue; // Skip this view
             }
-            
-            // Si on arrive ici, la reconnexion a échoué
-            return new Response(
-              JSON.stringify({ 
-                error: "Airtable authentication failed",
-                error_type: "auth_failed",
-                message: "Your Airtable connection has expired. Please reconnect your account.",
-                views: [],
-                total_records: 0
-              }),
-              { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
           }
           
           continue;

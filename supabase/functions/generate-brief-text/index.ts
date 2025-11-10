@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { domain, data, customPrompt } = await req.json();
+    const { domain, data, customPrompt, targetDurationMinutes = 2 } = await req.json();
     
     if (!domain || !data) {
       throw new Error("domain and data are required");
@@ -23,7 +23,19 @@ serve(async (req) => {
       throw new Error("DEEPSEEK_API_KEY not configured");
     }
 
+    console.log(`Generating brief text for domain: ${domain}`);
+    console.log(`Target duration: ${targetDurationMinutes} minutes`);
+
+    // Calculate dynamic max_tokens based on target duration
+    // Average speaking rate: ~150 words/minute in French
+    // 1 token ≈ 0.75 words for French
+    const targetWords = targetDurationMinutes * 150;
+    const maxTokens = Math.ceil(targetWords * 1.5); // 1.5x safety margin
+
+    console.log(`Target words: ${targetWords}, Max tokens: ${maxTokens}`);
+
     // Construire le prompt système - texte simple et direct
+    const wordLimit = Math.ceil(targetWords * 1.1); // Allow 10% overflow
     const systemPrompt = customPrompt || `Tu es expert dans ${domain}. 
 Génère un texte fluide et naturel prêt à être lu à voix haute.
 
@@ -32,9 +44,9 @@ RÈGLES STRICTES:
 - AUCUN formatage, AUCUN markdown, AUCUNE balise
 - Texte direct pour synthèse vocale
 - Style oral et conversationnel
-- 200-300 mots maximum`;
+- Ne dépasse jamais ${wordLimit} mots`;
 
-    console.log(`Generating brief text for domain: ${domain}`);
+    console.log(`Brief generation started for ${domain}`);
 
     // Appel à l'API DeepSeek avec modèle rapide
     const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
@@ -44,13 +56,13 @@ RÈGLES STRICTES:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek-chat", // Modèle rapide
+        model: "deepseek-chat",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }
         ],
         temperature: 0.7,
-        max_tokens: 500, // 200-300 mots
+        max_tokens: maxTokens,
       }),
     });
 

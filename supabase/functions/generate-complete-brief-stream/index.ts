@@ -189,11 +189,16 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         // Étape 5: Génération du texte avec DeepSeek
         sendLog({ timestamp: Date.now(), type: "info", icon: "🤖", message: "Génération du brief avec DeepSeek..." });
 
+        // Extract target duration from preferences (default to 2 minutes)
+        const durationMatch = preferences.brief_duration?.match(/(\d+)/);
+        const targetDurationMinutes = durationMatch ? parseInt(durationMatch[1]) : 2;
+
         const deepseekResponse = await supabase.functions.invoke("generate-brief-text", {
           body: {
             domain: avatar.role,
             data: userPrompt,
             customPrompt: systemPrompt,
+            targetDurationMinutes,
           },
         });
 
@@ -266,23 +271,38 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
           return;
         }
 
-        // Convertir l'audio en base64
+        // Upload audio to Supabase Storage
         const audioBuffer = await elevenLabsResponse.arrayBuffer();
-        const bytes = new Uint8Array(audioBuffer);
         
-        const chunkSize = 32 * 1024;
-        let binary = '';
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-          const chunk = bytes.slice(i, i + chunkSize);
-          binary += String.fromCharCode.apply(null, Array.from(chunk));
-        }
-        
-        const audioBase64 = btoa(binary);
-        const audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
-
         sendLog({ timestamp: Date.now(), type: "info", icon: "  └─", message: `Voix: ${voice?.name || voiceId}` });
         sendLog({ timestamp: Date.now(), type: "info", icon: "  └─", message: "Modèle: eleven_multilingual_v2" });
         sendLog({ timestamp: Date.now(), type: "success", icon: "✅", message: "Audio généré" });
+        sendLog({ timestamp: Date.now(), type: "info", icon: "💾", message: "Upload de l'audio vers le stockage..." });
+        
+        const weekStartStr = weekStart.replace(/\//g, '-');
+        const fileName = `${user.id}/brief-${weekStartStr}-${Date.now()}.mp3`;
+        
+        const { error: uploadError } = await supabase
+          .storage
+          .from('briefs-audio')
+          .upload(fileName, audioBuffer, {
+            contentType: 'audio/mpeg',
+            upsert: true
+          });
+
+        if (uploadError) {
+          console.error("Storage upload error:", uploadError);
+          sendError(`Erreur lors de l'upload audio: ${uploadError.message}`);
+          return;
+        }
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase
+          .storage
+          .from('briefs-audio')
+          .getPublicUrl(fileName);
+
+        sendLog({ timestamp: Date.now(), type: "success", icon: "✅", message: "Audio uploadé" });
 
         // Étape 7: Sauvegarde dans la table briefs (UPSERT)
         sendLog({ timestamp: Date.now(), type: "info", icon: "💾", message: "Sauvegarde du brief..." });
@@ -293,7 +313,7 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
             user_id: user.id,
             week_start: weekStart,
             script_text: narrativeText,
-            audio_url: audioUrl,
+            audio_url: publicUrl,
             actions_json: [],
             facts_json: {
               total_records: totalRecords,
@@ -324,7 +344,7 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
           success: true,
           brief_id: briefData.id,
           brief_text: narrativeText,
-          audio_url: audioUrl,
+          audio_url: publicUrl,
           metadata: {
             total_records: totalRecords,
             filtered_records: filteredRecords,
