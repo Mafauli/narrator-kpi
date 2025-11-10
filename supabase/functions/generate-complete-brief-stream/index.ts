@@ -220,16 +220,23 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         // Étape 6: Génération de l'audio avec ElevenLabs
         sendLog({ timestamp: Date.now(), type: "info", icon: "🎤", message: "Génération audio..." });
 
+        const elevenLabsApiKey = Deno.env.get("ELEVENLABS_API_KEY");
+        if (!elevenLabsApiKey) {
+          sendError("ELEVENLABS_API_KEY not configured");
+          return;
+        }
+
         console.log("=== TEXTE ENVOYÉ À ELEVENLABS ===");
         console.log(narrativeText);
         console.log("=== FIN TEXTE ===");
+        console.log("Voice ID:", voiceId);
 
         const elevenLabsResponse = await fetch(
           `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
           {
             method: "POST",
             headers: {
-              "xi-api-key": Deno.env.get("ELEVENLABS_API_KEY") || "",
+              "xi-api-key": elevenLabsApiKey,
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
@@ -246,7 +253,16 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         );
 
         if (!elevenLabsResponse.ok) {
-          sendError("Failed to generate voice sample");
+          const errorText = await elevenLabsResponse.text();
+          console.error("ElevenLabs API error:", elevenLabsResponse.status, errorText);
+          await sendLog({ 
+            timestamp: Date.now(), 
+            type: "error", 
+            icon: "❌", 
+            message: `ElevenLabs erreur ${elevenLabsResponse.status}`,
+            details: errorText.substring(0, 200)
+          });
+          sendError(`Failed to generate voice sample: ${elevenLabsResponse.status} - ${errorText}`);
           return;
         }
 
