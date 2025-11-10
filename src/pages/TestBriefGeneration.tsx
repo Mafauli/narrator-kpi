@@ -1,14 +1,21 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Play, Download } from "lucide-react";
+import { Loader2, Play, Download, Send } from "lucide-react";
 import { useBriefGeneration } from "@/hooks/useBriefGeneration";
+import { useSendWhatsAppBrief } from "@/hooks/useSendWhatsAppBrief";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const TestBriefGeneration = () => {
   const { generating, logs, result, generateBrief } = useBriefGeneration();
+  const { sendBrief, sending } = useSendWhatsAppBrief();
   const logsEndRef = useRef<HTMLDivElement>(null);
+  
+  const [countryCode, setCountryCode] = useState("+33");
+  const [phoneNumber, setPhoneNumber] = useState("");
 
   // Auto-scroll vers le dernier log
   useEffect(() => {
@@ -36,6 +43,15 @@ const TestBriefGeneration = () => {
     link.href = result.audio_url;
     link.download = `brief-${result.brief_id}.mp3`;
     link.click();
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!result?.brief_id || !phoneNumber) return;
+    const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+    await sendBrief({ 
+      brief_id: result.brief_id, 
+      phone_number: fullPhoneNumber 
+    });
   };
 
   const getLogColor = (type: string) => {
@@ -292,6 +308,59 @@ const TestBriefGeneration = () => {
                   <Download className="h-4 w-4" />
                   Télécharger l'audio
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* WhatsApp Send */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Envoyer via WhatsApp</CardTitle>
+                <CardDescription>
+                  Envoyez ce brief directement sur WhatsApp
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex gap-4">
+                    <div className="w-32">
+                      <Label htmlFor="country-code">Indicatif</Label>
+                      <Input
+                        id="country-code"
+                        type="text"
+                        placeholder="+33"
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Label htmlFor="phone-number">Numéro de téléphone</Label>
+                      <Input
+                        id="phone-number"
+                        type="tel"
+                        placeholder="612345678"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={handleSendWhatsApp} 
+                    disabled={sending || !phoneNumber}
+                    className="gap-2"
+                  >
+                    {sending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Envoi en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        Envoyer sur WhatsApp
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
