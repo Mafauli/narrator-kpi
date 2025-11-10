@@ -103,6 +103,7 @@ const TestBriefGeneration = () => {
 
   const [mockExample, setMockExample] = useState<any>(null);
   const displayResult = mockExample || result;
+  const isMockData = mockExample !== null;
 
   const getLogColor = (type: string) => {
     switch (type) {
@@ -376,7 +377,10 @@ const TestBriefGeneration = () => {
               <CardHeader>
                 <CardTitle>Envoyer via WhatsApp</CardTitle>
                 <CardDescription>
-                  Envoyez ce brief directement sur WhatsApp
+                  {isMockData 
+                    ? "⚠️ Générez un vrai brief pour pouvoir l'envoyer via WhatsApp" 
+                    : "Envoyez ce brief directement sur WhatsApp"
+                  }
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -390,6 +394,7 @@ const TestBriefGeneration = () => {
                         placeholder="+33"
                         value={countryCode}
                         onChange={(e) => setCountryCode(e.target.value)}
+                        disabled={isMockData}
                       />
                     </div>
                     <div className="flex-1">
@@ -400,12 +405,13 @@ const TestBriefGeneration = () => {
                         placeholder="612345678"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
+                        disabled={isMockData}
                       />
                     </div>
                   </div>
                   <Button 
                     onClick={handleSendWhatsApp} 
-                    disabled={sending || !phoneNumber}
+                    disabled={sending || !phoneNumber || isMockData}
                     className="gap-2"
                   >
                     {sending ? (
