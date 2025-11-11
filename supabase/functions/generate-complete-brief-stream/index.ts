@@ -337,11 +337,9 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
           return;
         }
 
-        // Get public URL
-        const { data: { publicUrl } } = supabase
-          .storage
-          .from('briefs-audio')
-          .getPublicUrl(fileName);
+        // Store file path instead of public URL for security
+        // Signed URLs will be generated on-demand when sending
+        const audioPath = fileName;
 
         sendLog({ timestamp: Date.now(), type: "success", icon: "✅", message: "Audio uploadé" });
 
@@ -354,7 +352,7 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
             user_id: userId,
             week_start: weekStart,
             script_text: narrativeText,
-            audio_url: publicUrl,
+            audio_url: audioPath, // Store file path, not public URL
             actions_json: [],
             facts_json: {
               total_records: totalRecords,
@@ -380,12 +378,20 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         const duration = ((endTime - startTime) / 1000).toFixed(1);
         sendLog({ timestamp: Date.now(), type: "success", icon: "🎉", message: `Workflow terminé en ${duration}s` });
 
+        // Generate signed URL for immediate playback (24 hours expiry)
+        const { data: signedUrlData } = await supabase
+          .storage
+          .from('briefs-audio')
+          .createSignedUrl(audioPath, 86400); // 24 hours = 86400 seconds
+
+        const signedAudioUrl = signedUrlData?.signedUrl || audioPath;
+
         // Envoyer le résultat final
         sendResult({
           success: true,
           brief_id: briefData.id,
           brief_text: narrativeText,
-          audio_url: publicUrl,
+          audio_url: signedAudioUrl, // Send signed URL to client
           metadata: {
             total_records: totalRecords,
             filtered_records: filteredRecords,

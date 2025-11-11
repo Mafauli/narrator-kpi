@@ -129,6 +129,24 @@ serve(async (req) => {
       );
     }
 
+    // Generate signed URL with 24 hour expiry for WhatsApp
+    const { data: signedUrlData, error: signedUrlError } = await supabase
+      .storage
+      .from('briefs-audio')
+      .createSignedUrl(brief.audio_url, 86400); // 24 hours = 86400 seconds
+
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      logger.error("Failed to generate signed URL", { 
+        error: signedUrlError?.message 
+      });
+      return new Response(
+        JSON.stringify({ error: "Failed to generate audio URL" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const audioUrl = signedUrlData.signedUrl;
+
     // Get WhatsApp credentials
     const WHATSAPP_API_TOKEN = Deno.env.get("WHATSAPP_API_TOKEN");
     const WHATSAPP_PHONE_ID = Deno.env.get("WHATSAPP_PHONE_ID");
@@ -137,7 +155,9 @@ serve(async (req) => {
       throw new Error("WhatsApp credentials not configured");
     }
 
-    logger.info("Sending WhatsApp message", { audio_url: brief.audio_url });
+    logger.info("Sending WhatsApp message with signed URL", { 
+      expires_in: "24h" 
+    });
 
     // Send message via WhatsApp Business API
     const whatsappResponse = await fetch(
@@ -154,7 +174,7 @@ serve(async (req) => {
           to: phone_number,
           type: "audio",
           audio: {
-            link: brief.audio_url,
+            link: audioUrl, // Use signed URL
           },
         }),
       }
