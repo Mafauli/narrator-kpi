@@ -11,6 +11,7 @@ import TestBriefGeneration from "./pages/TestBriefGeneration";
 import Admin from "./pages/Admin";
 import AdminPrompts from "./pages/AdminPrompts";
 import AdminDatabase from "./pages/AdminDatabase";
+import AdminLogs from "./pages/AdminLogs";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -53,6 +54,11 @@ const App = () => (
           <Route path="/app/admin/database" element={
             <ProtectedRoute>
               <AdminDatabase />
+            </ProtectedRoute>
+          } />
+          <Route path="/app/admin/logs" element={
+            <ProtectedRoute>
+              <AdminLogs />
             </ProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
