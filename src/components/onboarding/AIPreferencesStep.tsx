@@ -9,6 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, MessageSquare, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { z } from "zod";
+
+const onboardingSchema = z.object({
+  sector_final: z.string().min(2, "Secteur trop court").max(100, "Secteur trop long"),
+  north_star_metric: z.string().min(2, "Métrique trop courte").max(200, "Métrique trop longue"),
+  kpis_final: z.array(z.string().max(100, "KPI trop long")).max(20, "Maximum 20 KPIs"),
+  preferred_tone: z.enum(["no-bs", "sobre", "coach", "energique"]),
+  language: z.string(),
+  timezone: z.string()
+});
 
 interface AIPreferencesStepProps {
   onComplete: () => void;
@@ -275,6 +285,25 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non connecté");
 
+      // Validate inputs
+      try {
+        onboardingSchema.parse({
+          sector_final: sectorFinal,
+          north_star_metric: northStarMetric,
+          kpis_final: kpisFinal,
+          preferred_tone: preferredTone,
+          language,
+          timezone
+        });
+      } catch (validationError) {
+        if (validationError instanceof z.ZodError) {
+          toast.error(validationError.errors[0].message);
+          setLoading(false);
+          return;
+        }
+        throw validationError;
+      }
+
       // Map sector to business_model
       let businessModel: "saas" | "ecommerce" | "services" | "other" = "other";
       if (sectorFinal === "saas") businessModel = "saas";
@@ -414,7 +443,16 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
               placeholder="Ajouter un KPI..."
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                  setKpisFinal(prev => [...prev, e.currentTarget.value.trim()]);
+                  const newKpi = e.currentTarget.value.trim();
+                  if (newKpi.length > 100) {
+                    toast.error("KPI trop long (max 100 caractères)");
+                    return;
+                  }
+                  if (kpisFinal.length >= 20) {
+                    toast.error("Maximum 20 KPIs autorisés");
+                    return;
+                  }
+                  setKpisFinal(prev => [...prev, newKpi]);
                   e.currentTarget.value = '';
                 }
               }}

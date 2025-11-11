@@ -88,6 +88,20 @@ serve(async (req) => {
 
         sendLog({ timestamp: Date.now(), type: "success", icon: "👤", message: "Utilisateur authentifié" });
 
+        // Rate limiting check
+        sendLog({ timestamp: Date.now(), type: "info", icon: "⏱️", message: "Vérification des limites..." });
+        const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
+        const { count } = await supabase
+          .from('briefs')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .gte('created_at', oneHourAgo);
+
+        if (count && count >= 5) {
+          sendError('Rate limit: Maximum 5 briefs per hour. Please try again later.');
+          return;
+        }
+
         // Étape 1: Récupérer le contexte utilisateur
         sendLog({ timestamp: Date.now(), type: "info", icon: "🔍", message: "Récupération des préférences utilisateur..." });
         

@@ -1,6 +1,24 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.80.0';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+
+// Validation schemas
+const inferSchema = z.object({
+  phase: z.literal('infer'),
+  lang: z.string().default('fr'),
+  tz: z.string().default('Europe/Paris'),
+  views_schema: z.array(z.any()),
+  samples: z.array(z.any())
+});
+
+const refineSchema = z.object({
+  phase: z.literal('refine'),
+  lang: z.string().default('fr'),
+  tz: z.string().default('Europe/Paris'),
+  prior_inference: z.any(),
+  user_reply_raw: z.string().max(2000, 'User reply too long (max 2000 characters)')
+});
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,15 +71,40 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { phase, lang = 'fr', tz = 'Europe/Paris', views_schema, samples, prior_inference, user_reply_raw } = await req.json();
-
-    if (!phase || !['infer', 'refine'].includes(phase)) {
-      throw new Error('Invalid phase. Must be "infer" or "refine"');
-    }
+    const requestBody = await req.json();
     
-    // Validation: user_reply_raw length
-    if (phase === 'refine' && user_reply_raw && user_reply_raw.length > 1000) {
-      throw new Error('User reply too long (max 1000 characters)');
+    // Validate request based on phase
+    let phase: string;
+    let lang: string;
+    let tz: string;
+    let views_schema: any;
+    let samples: any;
+    let prior_inference: any;
+    let user_reply_raw: string | undefined;
+    
+    try {
+      if (requestBody.phase === 'infer') {
+        const validated = inferSchema.parse(requestBody);
+        phase = validated.phase;
+        lang = validated.lang;
+        tz = validated.tz;
+        views_schema = validated.views_schema;
+        samples = validated.samples;
+      } else if (requestBody.phase === 'refine') {
+        const validated = refineSchema.parse(requestBody);
+        phase = validated.phase;
+        lang = validated.lang;
+        tz = validated.tz;
+        prior_inference = validated.prior_inference;
+        user_reply_raw = validated.user_reply_raw;
+      } else {
+        throw new Error('Invalid phase. Must be "infer" or "refine"');
+      }
+    } catch (validationError) {
+      if (validationError instanceof z.ZodError) {
+        throw new Error(`Validation error: ${validationError.errors[0].message}`);
+      }
+      throw validationError;
     }
 
     console.log(`[onboarding-ai-infer] Phase: ${phase}, User: ${user.id}`);
