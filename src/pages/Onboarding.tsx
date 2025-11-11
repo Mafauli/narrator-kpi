@@ -416,8 +416,20 @@ const Onboarding = () => {
         whatsapp_phone: whatsappPhone
       }).eq("user_id", user.id);
 
-      // Simulate real progress steps based on actual timing
+      // Fetch Airtable data stats first
       setGenerationStep("📊 Récupération de vos données Airtable...");
+      
+      const { data: airtableData, error: airtableError } = await supabase.functions.invoke('fetch-airtable-data', {
+        body: {}
+      });
+
+      if (airtableError) throw airtableError;
+
+      const totalRecords = airtableData?.total_records || 0;
+      const viewsCount = airtableData?.views?.length || 0;
+      const estimatedCells = totalRecords * 8; // Estimation moyenne de 8 colonnes par vue
+
+      setGenerationStep(`📊 Analyse de ${totalRecords} lignes depuis ${viewsCount} vue${viewsCount > 1 ? 's' : ''} (≈${estimatedCells} cellules)...`);
       
       // Start the actual generation
       const generationPromise = supabase.functions.invoke('generate-complete-brief', {
