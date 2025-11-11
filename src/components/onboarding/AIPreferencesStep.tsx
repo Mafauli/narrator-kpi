@@ -47,8 +47,61 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
   const [priorInference, setPriorInference] = useState<any>(null);
 
   useEffect(() => {
-    startInferPhase();
+    loadOrStartInferPhase();
   }, []);
+
+  const loadOrStartInferPhase = async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Non connecté");
+
+      // Check if user already has onboarding data
+      const { data: existingOnboarding, error: fetchError } = await supabase
+        .from('onboarding')
+        .select('infer_json, final_context')
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('[AIPreferencesStep] Error fetching onboarding:', fetchError);
+      }
+
+      // If data exists and is recent (< 72h), load it directly
+      if (existingOnboarding?.final_context) {
+        console.log('[AIPreferencesStep] Loading existing onboarding data');
+        const finalCtx = existingOnboarding.final_context as any;
+        const ctx = finalCtx.context || {};
+        
+        // Load prior inference for potential refine
+        if (existingOnboarding.infer_json) {
+          setPriorInference(existingOnboarding.infer_json as any);
+        }
+        
+        setSectorFinal(ctx.sector_final || "");
+        setNorthStarMetric(ctx.north_star_metric || "");
+        setKpisFinal(ctx.kpis_final || []);
+        setPreferredTone(ctx.preferred_tone || "no-bs");
+        setLanguage(ctx.language || "fr");
+        setTimezone(ctx.timezone || "Europe/Paris");
+        
+        setSampleBrief(finalCtx.sample_brief || "");
+        setConfirmationMessage(finalCtx.confirmation_message || "");
+        
+        setPhase('refined');
+        toast.success("Configuration chargée");
+        setLoading(false);
+        return;
+      }
+
+      // Otherwise, start the infer phase
+      await startInferPhase();
+    } catch (error: any) {
+      console.error('[AIPreferencesStep] Error in loadOrStartInferPhase:', error);
+      // Fallback to normal infer phase
+      await startInferPhase();
+    }
+  };
 
   const startInferPhase = async () => {
     setLoading(true);

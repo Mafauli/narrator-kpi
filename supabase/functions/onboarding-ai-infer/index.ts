@@ -98,6 +98,27 @@ serve(async (req) => {
 
     console.log(`[onboarding-ai-infer] Phase: ${phase}, User: ${user.id}`);
 
+    // Check cache for infer phase
+    if (phase === 'infer') {
+      const { data: cachedOnboarding } = await supabase
+        .from('onboarding')
+        .select('infer_json, updated_at')
+        .eq('user_id', user.id)
+        .single();
+
+      if (cachedOnboarding?.infer_json) {
+        const cacheAge = Date.now() - new Date(cachedOnboarding.updated_at).getTime();
+        const maxCacheAge = 72 * 60 * 60 * 1000; // 72 hours
+
+        if (cacheAge < maxCacheAge) {
+          console.log('[onboarding-ai-infer] Returning cached infer_json');
+          return new Response(JSON.stringify(cachedOnboarding.infer_json), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+    }
+
     let userMessage: any;
     
     if (phase === 'infer') {
