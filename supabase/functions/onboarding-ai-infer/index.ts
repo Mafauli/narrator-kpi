@@ -2,6 +2,9 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.80.0';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { createLogger } from "../_shared/logger.ts";
+
+const logger = createLogger("onboarding-ai-infer");
 
 // Validation schemas
 const inferSchema = z.object({
@@ -242,12 +245,25 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    console.error('[onboarding-ai-infer] Error:', error.message || 'Unknown error');
-    // Don't expose internal error details to client
-    const userMessage = error.message?.includes('API') || error.message?.includes('Invalid') 
-      ? error.message 
-      : 'Erreur lors de l\'analyse. Réessaye dans quelques instants.';
-    return new Response(JSON.stringify({ error: userMessage }), {
+    logger.error("Error in onboarding AI inference", { 
+      error: error.message || 'Unknown error',
+      phase: error.phase || 'unknown'
+    });
+    
+    // Provide user-friendly error messages without exposing technical details
+    let userMessage = 'Une erreur est survenue lors de l\'analyse. Réessaye dans quelques instants.';
+    
+    if (error.message?.includes('Clé API') || error.message?.includes('API KEY')) {
+      userMessage = 'Configuration API incorrecte. Contacte l\'administrateur.';
+    } else if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
+      userMessage = 'Service temporairement surchargé. Patiente quelques secondes.';
+    } else if (error.message?.includes('Unauthorized') || error.message?.includes('authorization')) {
+      userMessage = 'Session expirée. Reconnecte-toi.';
+    }
+    
+    return new Response(JSON.stringify({ 
+      error: userMessage 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

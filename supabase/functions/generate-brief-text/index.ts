@@ -1,6 +1,9 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createLogger } from "../_shared/logger.ts";
+
+const logger = createLogger("generate-brief-text");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -164,10 +167,14 @@ RÈGLES STRICTES:
     );
 
   } catch (error) {
-    console.error("Error generating brief text:", error instanceof Error ? error.message : 'Unknown error');
-    const errorMessage = error instanceof Error ? error.message : "Erreur lors de la génération du brief";
+    logger.error("Error generating brief text", { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ 
+        error: "Failed to generate brief text",
+        message: "Unable to generate content. Please try again."
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 

@@ -1,6 +1,9 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.80.0';
+import { createLogger } from "../_shared/logger.ts";
+
+const logger = createLogger("get-edge-logs");
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -115,9 +118,12 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    console.error('[get-edge-logs] Error:', error);
+    logger.error("Error fetching edge logs", { 
+      error: error?.message || 'Unknown error' 
+    });
     return new Response(JSON.stringify({ 
-      error: error?.message || 'Unknown error',
+      error: "Failed to fetch logs",
+      message: "Unable to retrieve function logs. Please try again.",
       logs: []
     }), {
       status: 500,

@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
+import { createLogger } from "../_shared/logger.ts";
+
+const logger = createLogger("fetch-airtable-data");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -220,9 +223,14 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Error in fetch-airtable-data:", error);
+    logger.error("Error in fetch-airtable-data", { 
+      error: error instanceof Error ? error.message : "Unknown error" 
+    });
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ 
+        error: "Failed to fetch Airtable data",
+        message: "Unable to retrieve data. Please check your Airtable connection."
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

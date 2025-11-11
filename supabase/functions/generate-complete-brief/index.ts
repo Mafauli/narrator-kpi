@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
+import { createLogger } from "../_shared/logger.ts";
+
+const logger = createLogger("generate-complete-brief");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -328,13 +331,16 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
     );
 
   } catch (error) {
-    console.error("Error in generate-complete-brief:", error);
-    addLog("error", "❌", "Erreur", error instanceof Error ? error.message : "Unknown error");
+    logger.error("Error in generate-complete-brief", { 
+      error: error instanceof Error ? error.message : "Unknown error" 
+    });
+    addLog("error", "❌", "Erreur", "Brief generation failed");
     
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: "Failed to generate brief",
+        message: "Unable to generate brief. Please try again.",
         logs: logs,
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
