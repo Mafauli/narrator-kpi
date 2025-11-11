@@ -22,17 +22,36 @@ serve(async (req) => {
       throw new Error("Missing authorization header");
     }
 
+    // Check if this is a system call (CRON) via service role
+    const userIdHeader = req.headers.get("x-user-id");
+    const isServiceRole = authHeader.includes(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+    
+    let userId: string;
+    
+    if (isServiceRole && userIdHeader) {
+      // System call from CRON
+      userId = userIdHeader;
+      console.log("System call detected for user:", userId);
+    } else {
+      // Regular user call
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { global: { headers: { Authorization: authHeader } } }
+      );
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error("Unauthorized");
+      }
+      userId = user.id;
+    }
+
+    // Use service role client for all operations
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
-
-    // Authenticate user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      throw new Error("Unauthorized");
-    }
 
     const { brief_id, phone_number }: SendBriefRequest = await req.json();
 
@@ -55,14 +74,29 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Sending brief ${brief_id} to ${phone_number} for user ${user.id}`);
+    console.log(`Sending brief ${brief_id} to ${phone_number} for user ${userId}`);
+
+    // Rate limiting check: max 10 sends per hour
+    const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
+    const { data: recentSends } = await supabase
+      .from("whatsapp_deliveries")
+      .select("created_at")
+      .eq("user_id", userId)
+      .gte("created_at", oneHourAgo);
+
+    if (recentSends && recentSends.length >= 10) {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded: maximum 10 sends per hour" }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Fetch the brief
     const { data: brief, error: briefError } = await supabase
       .from("briefs")
       .select("*")
       .eq("id", brief_id)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .maybeSingle();
 
     if (briefError) {
@@ -74,7 +108,7 @@ serve(async (req) => {
     }
 
     if (!brief) {
-      console.error(`Brief ${brief_id} not found for user ${user.id}`);
+      console.error(`Brief ${brief_id} not found for user ${userId}`);
       return new Response(
         JSON.stringify({ error: "Brief not found or does not belong to user" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -129,7 +163,7 @@ serve(async (req) => {
       // Create failed delivery record
       await supabase.from("whatsapp_deliveries").insert({
         brief_id,
-        user_id: user.id,
+        user_id: userId,
         phone_number,
         status: "failed",
         error_message: whatsappData.error?.message || "Unknown WhatsApp API error",
@@ -153,7 +187,7 @@ serve(async (req) => {
       .from("whatsapp_deliveries")
       .insert({
         brief_id,
-        user_id: user.id,
+        user_id: userId,
         phone_number,
         message_id: messageId,
         status: "sent",

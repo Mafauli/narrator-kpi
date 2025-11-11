@@ -54,19 +54,39 @@ serve(async (req) => {
           return;
         }
 
-        const supabase = createClient(
-          Deno.env.get("SUPABASE_URL") ?? "",
-          Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-          { global: { headers: { Authorization: authHeader } } }
-        );
+        // Check if this is a system call (CRON) via service role
+        const userIdHeader = req.headers.get("x-user-id");
+        const isServiceRole = authHeader.includes(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+        
+        let userId: string;
+        
+        if (isServiceRole && userIdHeader) {
+          // System call from CRON
+          userId = userIdHeader;
+          console.log("System call detected for user:", userId);
+        } else {
+          // Regular user call
+          const supabase = createClient(
+            Deno.env.get("SUPABASE_URL") ?? "",
+            Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+            { global: { headers: { Authorization: authHeader } } }
+          );
 
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError || !user) {
-          sendError("Unauthorized");
-          return;
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          if (userError || !user) {
+            sendError("Unauthorized");
+            return;
+          }
+          userId = user.id;
         }
 
-        sendLog({ timestamp: Date.now(), type: "success", icon: "👤", message: "Utilisateur authentifié", details: user.email || "" });
+        // Use service role client for all operations
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+        );
+
+        sendLog({ timestamp: Date.now(), type: "success", icon: "👤", message: "Utilisateur authentifié" });
 
         // Étape 1: Récupérer le contexte utilisateur
         sendLog({ timestamp: Date.now(), type: "info", icon: "🔍", message: "Récupération des préférences utilisateur..." });
@@ -74,7 +94,7 @@ serve(async (req) => {
         const { data: preferences, error: prefError } = await supabase
           .from("preferences")
           .select("*, avatars(*)")
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .single();
 
         if (prefError || !preferences) {
@@ -199,7 +219,7 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
             data: userPrompt,
             customPrompt: systemPrompt,
             targetDurationMinutes,
-            userId: user.id,
+            userId: userId,
           },
         });
 
@@ -281,7 +301,7 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         sendLog({ timestamp: Date.now(), type: "info", icon: "💾", message: "Upload de l'audio vers le stockage..." });
         
         const weekStartStr = weekStart.replace(/\//g, '-');
-        const fileName = `${user.id}/brief-${weekStartStr}-${Date.now()}.mp3`;
+        const fileName = `${userId}/brief-${weekStartStr}-${Date.now()}.mp3`;
         
         const { error: uploadError } = await supabase
           .storage
@@ -311,7 +331,7 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         const { data: briefData, error: briefError } = await supabase
           .from("briefs")
           .upsert({
-            user_id: user.id,
+            user_id: userId,
             week_start: weekStart,
             script_text: narrativeText,
             audio_url: publicUrl,

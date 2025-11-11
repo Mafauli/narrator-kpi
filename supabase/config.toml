@@ -41,3 +41,6 @@ verify_jwt = true
 
 [functions.get-edge-logs]
 verify_jwt = true
+
+[functions.process-scheduled-briefs]
+verify_jwt = false

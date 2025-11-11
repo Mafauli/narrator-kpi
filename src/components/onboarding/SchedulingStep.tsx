@@ -3,8 +3,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Calendar, Clock, Globe } from "lucide-react";
+import { Lock, Calendar, Clock, Globe, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { parsePhoneNumber } from 'react-phone-number-input';
 
 interface SchedulingStepProps {
   scheduleFrequency: 'weekly' | 'monthly' | 'daily';
@@ -60,6 +61,28 @@ export const SchedulingStep = ({
 }: SchedulingStepProps) => {
   const [nextSendDate, setNextSendDate] = useState<string>("");
   const [isAutoDetected, setIsAutoDetected] = useState(false);
+  const [phoneValidation, setPhoneValidation] = useState<{ isValid: boolean; error?: string }>({ isValid: true });
+
+  useEffect(() => {
+    if (whatsappPhone) {
+      try {
+        const phoneNumber = parsePhoneNumber(whatsappPhone);
+        if (!phoneNumber || !phoneNumber.isValid()) {
+          setPhoneValidation({ 
+            isValid: false, 
+            error: "Format invalide. Utilisez le format international (ex: +33612345678)" 
+          });
+        } else {
+          setPhoneValidation({ isValid: true });
+        }
+      } catch (error) {
+        setPhoneValidation({ 
+          isValid: false, 
+          error: "Numéro de téléphone invalide" 
+        });
+      }
+    }
+  }, [whatsappPhone]);
 
   useEffect(() => {
     const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -260,9 +283,18 @@ export const SchedulingStep = ({
       </div>
 
       {/* WhatsApp Confirmation */}
-      <div className="bg-secondary/30 rounded-lg p-6">
-        <Label className="text-sm text-muted-foreground mb-2 block">📱 Numéro WhatsApp confirmé</Label>
-        <p className="font-mono text-lg">{whatsappPhone || "Non renseigné"}</p>
+      <div className={cn(
+        "rounded-lg p-6",
+        phoneValidation.isValid ? "bg-secondary/30" : "bg-destructive/10 border-2 border-destructive"
+      )}>
+        <Label className="text-sm text-muted-foreground mb-2 block flex items-center gap-2">
+          📱 Numéro WhatsApp confirmé
+          {!phoneValidation.isValid && <AlertCircle className="h-4 w-4 text-destructive" />}
+        </Label>
+        <p className="font-mono text-lg mb-1">{whatsappPhone || "Non renseigné"}</p>
+        {!phoneValidation.isValid && phoneValidation.error && (
+          <p className="text-sm text-destructive mt-2">{phoneValidation.error}</p>
+        )}
       </div>
 
       {/* Next Send Preview */}
