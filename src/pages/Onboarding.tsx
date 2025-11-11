@@ -400,8 +400,17 @@ const Onboarding = () => {
   };
 
   const handleGenerateAndSendBrief = async () => {
-    if (!firstName || !whatsappPhone) {
-      toast.error("Renseigne ton prénom et ton numéro WhatsApp");
+    // Validation
+    const cleanFirstName = firstName.trim();
+    const cleanPhone = whatsappPhone.trim().replace(/\s/g, '');
+    
+    if (!cleanFirstName || cleanFirstName.length > 50) {
+      toast.error("Prénom invalide (max 50 caractères)");
+      return;
+    }
+    
+    if (!cleanPhone || !/^\+?\d{8,15}$/.test(cleanPhone)) {
+      toast.error("Numéro WhatsApp invalide (format: +33659387912)");
       return;
     }
 
@@ -412,8 +421,8 @@ const Onboarding = () => {
 
       // Save first name and phone to preferences
       await supabase.from("preferences").update({
-        first_name: firstName,
-        whatsapp_phone: whatsappPhone
+        first_name: cleanFirstName,
+        whatsapp_phone: cleanPhone
       }).eq("user_id", user.id);
 
       // Fetch Airtable data stats first
@@ -456,7 +465,7 @@ const Onboarding = () => {
       const { error: sendError } = await supabase.functions.invoke('send-whatsapp-brief', {
         body: {
           brief_id: briefData.brief_id,
-          phone_number: whatsappPhone
+          phone_number: cleanPhone
         }
       });
 

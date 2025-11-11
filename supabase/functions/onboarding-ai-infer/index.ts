@@ -58,6 +58,11 @@ serve(async (req) => {
     if (!phase || !['infer', 'refine'].includes(phase)) {
       throw new Error('Invalid phase. Must be "infer" or "refine"');
     }
+    
+    // Validation: user_reply_raw length
+    if (phase === 'refine' && user_reply_raw && user_reply_raw.length > 1000) {
+      throw new Error('User reply too long (max 1000 characters)');
+    }
 
     console.log(`[onboarding-ai-infer] Phase: ${phase}, User: ${user.id}`);
 
@@ -131,7 +136,8 @@ serve(async (req) => {
 
     if (!deepseekResponse.ok) {
       const errorText = await deepseekResponse.text();
-      console.error('[onboarding-ai-infer] DeepSeek error:', errorText);
+      console.error('[onboarding-ai-infer] DeepSeek error status:', deepseekResponse.status);
+      // Don't log full error text as it might contain sensitive data
       throw new Error(`DeepSeek API error: ${deepseekResponse.status}`);
     }
 
@@ -183,8 +189,12 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    console.error('[onboarding-ai-infer] Error:', error);
-    return new Response(JSON.stringify({ error: error?.message || 'Unknown error' }), {
+    console.error('[onboarding-ai-infer] Error:', error.message || 'Unknown error');
+    // Don't expose internal error details to client
+    const userMessage = error.message?.includes('API') || error.message?.includes('Invalid') 
+      ? error.message 
+      : 'Erreur lors de l\'analyse. Réessaye dans quelques instants.';
+    return new Response(JSON.stringify({ error: userMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

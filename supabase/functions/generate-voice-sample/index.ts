@@ -49,10 +49,11 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("ElevenLabs TTS error:", response.status, errorText);
+      console.error("ElevenLabs TTS error status:", response.status);
       console.error("Voice ID used:", voice_id);
       console.error("Text length:", sampleText.length);
-      throw new Error(`ElevenLabs TTS error (${response.status}): ${errorText}`);
+      // Don't expose API key or full error to logs
+      throw new Error(`ElevenLabs TTS error (${response.status})`);
     }
 
     console.log("Voice sample generated successfully");
@@ -66,8 +67,8 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("Error generating sample:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("Error generating sample:", error instanceof Error ? error.message : 'Unknown error');
+    const errorMessage = error instanceof Error ? error.message : "Erreur lors de la génération audio";
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

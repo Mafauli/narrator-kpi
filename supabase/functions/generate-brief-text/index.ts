@@ -106,8 +106,9 @@ RÈGLES STRICTES:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("DeepSeek API error:", response.status, errorText);
-      throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`);
+      console.error("DeepSeek API error status:", response.status);
+      // Don't expose full error details
+      throw new Error(`DeepSeek API error: ${response.status}`);
     }
 
     const result = await response.json();
@@ -163,8 +164,8 @@ RÈGLES STRICTES:
     );
 
   } catch (error) {
-    console.error("Error generating brief text:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("Error generating brief text:", error instanceof Error ? error.message : 'Unknown error');
+    const errorMessage = error instanceof Error ? error.message : "Erreur lors de la génération du brief";
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { 

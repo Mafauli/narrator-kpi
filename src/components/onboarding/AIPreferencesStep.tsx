@@ -195,8 +195,16 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
   };
 
   const handleUserReply = async () => {
-    if (!userReply.trim()) {
+    const reply = userReply.trim();
+    
+    // Validation
+    if (!reply) {
       toast.error("Écris une réponse avant d'envoyer");
+      return;
+    }
+    
+    if (reply.length > 1000) {
+      toast.error("Réponse trop longue (max 1000 caractères)");
       return;
     }
 
@@ -210,7 +218,7 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
           lang: 'fr',
           tz: 'Europe/Paris',
           prior_inference: priorInference,
-          user_reply_raw: userReply
+          user_reply_raw: reply
         }
       });
 
@@ -334,7 +342,7 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
               Aperçu de votre brief
             </Label>
             <div className="bg-muted rounded-lg p-4 text-sm whitespace-pre-line max-h-64 overflow-y-auto">
-              {sampleBrief.replace(/(\d\))/g, '\n$1')}
+              {sampleBrief}
             </div>
           </div>
         )}
