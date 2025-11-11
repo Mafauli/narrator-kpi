@@ -28,6 +28,19 @@ export default function Dashboard() {
 
     const fetchData = async () => {
       try {
+        // Check if user has completed onboarding
+        const { data: prefsData } = await supabase
+          .from('preferences')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        // If no preferences, redirect to onboarding
+        if (!prefsData) {
+          navigate('/app/onboarding');
+          return;
+        }
+
         // Fetch briefs with WhatsApp delivery status
         const { data: briefsData, error: briefsError } = await supabase
           .from('briefs')
@@ -53,7 +66,7 @@ export default function Dashboard() {
         if (scheduleError) throw scheduleError;
         setActiveSchedule(scheduleData);
       } catch (error) {
-        // Error handled silently - user will see empty state
+        console.error('Dashboard error:', error);
       } finally {
         setLoading(false);
       }
