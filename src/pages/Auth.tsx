@@ -8,34 +8,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Play } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { useEffect } from "react";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp, user, loading } = useAuth();
+  const { signIn, signUp, loading } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user && !loading) {
-      console.log('User authenticated, redirecting to /app');
-      navigate("/app", { replace: true });
-    }
-  }, [user, loading, navigate]);
-
-  // Show loading while checking auth
+  // Show loading while checking initial auth state
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Chargement...</div>
       </div>
     );
-  }
-
-  // Don't render form if already logged in
-  if (user) {
-    return null;
   }
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -45,7 +32,8 @@ const Auth = () => {
     try {
       await signIn(email, password);
       toast.success("Connexion réussie !");
-      // Navigation will be handled by useEffect when user state updates
+      // Navigate immediately after successful login
+      navigate("/app", { replace: true });
     } catch (error: any) {
       console.error('SignIn error:', error);
       toast.error(error.message || "Erreur lors de la connexion");
@@ -60,10 +48,10 @@ const Auth = () => {
     try {
       await signUp(email, password);
       toast.success("Compte créé avec succès !");
-      // Navigation handled by useEffect
+      // Navigate immediately after successful signup
+      navigate("/app", { replace: true });
     } catch (error: any) {
       toast.error(error.message || "Erreur lors de l'inscription");
-    } finally {
       setIsLoading(false);
     }
   };

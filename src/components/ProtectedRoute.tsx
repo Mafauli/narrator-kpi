@@ -7,22 +7,26 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Only redirect if we're sure there's no user (not loading)
     if (!loading && !user) {
-      navigate("/auth");
+      navigate("/auth", { replace: true });
     }
   }, [user, loading, navigate]);
 
+  // Show loading state while checking authentication
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Chargement...</div>
+        <div className="animate-pulse text-muted-foreground">Vérification...</div>
       </div>
     );
   }
 
+  // Don't render anything if no user (will redirect)
   if (!user) {
     return null;
   }
 
+  // User is authenticated, render children
   return <>{children}</>;
 };

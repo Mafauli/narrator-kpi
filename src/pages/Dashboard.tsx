@@ -21,10 +21,7 @@ export default function Dashboard() {
   const [activeSchedule, setActiveSchedule] = useState<any>(null);
 
   useEffect(() => {
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
+    if (!user) return;
 
     const fetchData = async () => {
       try {
@@ -37,7 +34,7 @@ export default function Dashboard() {
 
         // If no preferences, redirect to onboarding
         if (!prefsData) {
-          navigate('/app/onboarding');
+          navigate('/app/onboarding', { replace: true });
           return;
         }
 
