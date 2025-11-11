@@ -13,6 +13,7 @@ import AdminPrompts from "./pages/AdminPrompts";
 import AdminDatabase from "./pages/AdminDatabase";
 import AdminLogs from "./pages/AdminLogs";
 import AdminAvatars from "./pages/AdminAvatars";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -65,6 +66,11 @@ const App = () => (
           <Route path="/app/admin/avatars" element={
             <ProtectedRoute>
               <AdminAvatars />
+            </ProtectedRoute>
+          } />
+          <Route path="/app/profile" element={
+            <ProtectedRoute>
+              <Profile />
             </ProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
