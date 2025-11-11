@@ -460,7 +460,7 @@ const Onboarding = () => {
       </header>
 
       <div className="container py-12">
-        <div className="max-w-2xl mx-auto space-y-8">
+        <div className={`mx-auto space-y-8 ${step === 4 ? 'max-w-7xl' : 'max-w-2xl'}`}>
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">Configuration initiale</h1>
             <p className="text-muted-foreground">
@@ -680,15 +680,15 @@ const Onboarding = () => {
                 </div>
 
                 {/* Avatar Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {avatars
                     .filter(avatar => avatarSectorFilter === "all" || avatar.best_for.includes(avatarSectorFilter))
                     .filter(avatar => avatarToneFilter === "all" || avatar.default_tone === avatarToneFilter)
                     .map((avatar) => (
-                      <Card key={avatar.id} className={`cursor-pointer transition-all hover:shadow-md ${
-                        selectedAvatar?.id === avatar.id ? 'ring-2 ring-accent' : ''
+                      <Card key={avatar.id} className={`cursor-pointer transition-all hover:shadow-lg ${
+                        selectedAvatar?.id === avatar.id ? 'ring-2 ring-accent shadow-lg' : ''
                       }`}>
-                        <CardContent className="p-4 space-y-3">
+                        <CardContent className="p-5 space-y-4">
                           <div className="aspect-square rounded-lg overflow-hidden bg-muted">
                             <img 
                               src={avatarImages[avatar.id]} 
@@ -697,22 +697,22 @@ const Onboarding = () => {
                             />
                           </div>
                           <div>
-                            <h3 className="font-semibold">{avatar.name}</h3>
+                            <h3 className="font-semibold text-base">{avatar.name}</h3>
                             <p className="text-sm text-muted-foreground">{avatar.role}</p>
                           </div>
-                          <p className="text-sm line-clamp-2">{avatar.pitch}</p>
-                          <div className="flex flex-wrap gap-1">
+                          <p className="text-sm line-clamp-2 min-h-[2.5rem]">{avatar.pitch}</p>
+                          <div className="flex flex-wrap gap-1 min-h-[28px]">
                             {avatar.skills.slice(0, 3).map((skill: string, i: number) => (
                               <Badge key={i} variant="secondary" className="text-xs">
                                 {skill}
                               </Badge>
                             ))}
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="flex-1"
+                              className="flex-1 w-full"
                               onClick={async () => {
                                 try {
                                   // Fetch the voice mapping for this avatar
@@ -753,13 +753,13 @@ const Onboarding = () => {
                             </Button>
                             <Button 
                               size="sm" 
-                              className="flex-1 bg-accent hover:bg-accent/90"
+                              className="flex-1 w-full bg-accent hover:bg-accent/90"
                               onClick={() => {
                                 setSelectedAvatar(avatar);
                                 setSelectedVoice(avatar.voice_reco);
                               }}
                             >
-                              {selectedAvatar?.id === avatar.id ? 'Sélectionné' : 'Choisir'}
+                              {selectedAvatar?.id === avatar.id ? '✓ Sélectionné' : 'Choisir'}
                             </Button>
                           </div>
                         </CardContent>
