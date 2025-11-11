@@ -196,7 +196,7 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
     const deepseekResult = await deepseekResponse.json();
     const briefText = deepseekResult.text;
     
-    addLog("info", "  └─", `Modèle: deepseek-reasoner`);
+    addLog("info", "  └─", `Modèle: ${deepseekResult.model || 'deepseek-chat'}`);
     if (deepseekResult.usage) {
       addLog("info", "  └─", `Tokens: ${deepseekResult.usage.prompt_tokens} (input) + ${deepseekResult.usage.completion_tokens} (output)`);
     }
