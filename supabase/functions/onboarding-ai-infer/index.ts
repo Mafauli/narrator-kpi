@@ -138,7 +138,7 @@ serve(async (req) => {
           { role: 'user', content: JSON.stringify(userMessage) }
         ],
         response_format: { type: 'json_object' },
-        temperature: 1.0
+        temperature: 0.7
       }),
     });
 

@@ -62,7 +62,7 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
                 baseId: view.baseId,
                 tableId: view.tableId,
                 viewId: view.viewId,
-                maxRecords: 50
+                maxRecords: 10
               }
             });
 
@@ -280,8 +280,8 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
               <MessageSquare className="h-4 w-4" />
               Aperçu de votre brief
             </Label>
-            <div className="bg-muted rounded-lg p-4 text-sm whitespace-pre-wrap max-h-64 overflow-y-auto">
-              {sampleBrief}
+            <div className="bg-muted rounded-lg p-4 text-sm whitespace-pre-line max-h-64 overflow-y-auto">
+              {sampleBrief.replace(/(\d\))/g, '\n$1')}
             </div>
           </div>
         )}
@@ -316,9 +316,27 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
             <Label>KPIs principaux</Label>
             <div className="flex flex-wrap gap-2">
               {kpisFinal.map((kpi, idx) => (
-                <Badge key={idx} variant="secondary">{kpi}</Badge>
+                <Badge key={idx} variant="secondary" className="flex items-center gap-1">
+                  {kpi}
+                  <button
+                    type="button"
+                    onClick={() => setKpisFinal(prev => prev.filter((_, i) => i !== idx))}
+                    className="ml-1 hover:text-destructive"
+                  >
+                    ×
+                  </button>
+                </Badge>
               ))}
             </div>
+            <Input
+              placeholder="Ajouter un KPI..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                  setKpisFinal(prev => [...prev, e.currentTarget.value.trim()]);
+                  e.currentTarget.value = '';
+                }
+              }}
+            />
           </div>
 
           <div className="space-y-2">
