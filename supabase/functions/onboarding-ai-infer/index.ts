@@ -137,8 +137,18 @@ serve(async (req) => {
     if (!deepseekResponse.ok) {
       const errorText = await deepseekResponse.text();
       console.error('[onboarding-ai-infer] DeepSeek error status:', deepseekResponse.status);
-      // Don't log full error text as it might contain sensitive data
-      throw new Error(`DeepSeek API error: ${deepseekResponse.status}`);
+      console.error('[onboarding-ai-infer] Error details:', errorText.substring(0, 200));
+      
+      // Provide specific error messages based on status code
+      if (deepseekResponse.status === 401 || deepseekResponse.status === 403) {
+        throw new Error('Clé API DeepSeek invalide ou expirée. Contacte l\'administrateur.');
+      } else if (deepseekResponse.status === 404) {
+        throw new Error('Service DeepSeek temporairement indisponible. Réessaye dans quelques instants.');
+      } else if (deepseekResponse.status === 429) {
+        throw new Error('Trop de requêtes DeepSeek. Patiente quelques secondes.');
+      }
+      
+      throw new Error(`Erreur DeepSeek (${deepseekResponse.status}). Réessaye plus tard.`);
     }
 
     const deepseekData = await deepseekResponse.json();

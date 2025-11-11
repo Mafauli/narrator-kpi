@@ -264,6 +264,7 @@ const Onboarding = () => {
     }
 
     setIsLoading(true);
+    toast.loading("Enregistrement des vues...", { id: "save-views" });
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non connecté");
@@ -287,10 +288,10 @@ const Onboarding = () => {
 
       if (error) throw error;
 
-      toast.success("Vues enregistrées !");
+      toast.success("Vues enregistrées !", { id: "save-views" });
       setStep(3);
     } catch (error: any) {
-      toast.error(error.message || "Erreur lors de l'enregistrement");
+      toast.error(error.message || "Erreur lors de l'enregistrement", { id: "save-views" });
     } finally {
       setIsLoading(false);
     }
@@ -357,9 +358,33 @@ const Onboarding = () => {
         setIsLoading(false);
         return;
       }
+
+      // Listen for OAuth completion message
+      const handleOAuthMessage = (event: MessageEvent) => {
+        if (event.data.type === 'airtable-oauth-success') {
+          console.log('✅ OAuth success received via postMessage');
+          window.removeEventListener('message', handleOAuthMessage);
+          setAirtableConnected(true);
+          toast.success("Connexion Airtable établie !");
+          fetchBases();
+          setIsLoading(false);
+        } else if (event.data.type === 'airtable-oauth-error') {
+          console.error('❌ OAuth error:', event.data.error);
+          window.removeEventListener('message', handleOAuthMessage);
+          toast.error("Erreur lors de la connexion Airtable");
+          setIsLoading(false);
+        }
+      };
+
+      window.addEventListener('message', handleOAuthMessage);
       
-      // Reset loading state immediately since we're using a popup
-      setIsLoading(false);
+      // Timeout after 2 minutes
+      setTimeout(() => {
+        window.removeEventListener('message', handleOAuthMessage);
+        if (isLoading) {
+          setIsLoading(false);
+        }
+      }, 120000);
     } catch (error: any) {
       console.error('❌ Error in handleConnectAirtable:', error);
       toast.error(error.message || "Erreur lors de la connexion");

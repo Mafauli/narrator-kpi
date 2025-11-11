@@ -104,15 +104,34 @@ serve(async (req) => {
 
     console.log('Connection saved successfully');
 
-    // Redirect to onboarding with success flag
-    const appUrl = Deno.env.get('APP_URL') || Deno.env.get('SUPABASE_URL')?.replace('supabase.co', 'lovableproject.com') || '';
-    const redirectUrl = `${appUrl}/app/onboarding?airtable_connected=true`;
-    
-    return new Response(null, {
-      status: 302,
-      headers: {
-        'Location': redirectUrl,
-      }
+    // Return HTML that notifies parent window and closes popup
+    return new Response(`
+      <html>
+        <head>
+          <style>
+            body { font-family: system-ui; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f5f5f5; }
+            .message { text-align: center; }
+            .success { color: #22c55e; font-size: 24px; margin-bottom: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="message">
+            <div class="success">✓ Connexion réussie</div>
+            <p>Fermeture automatique...</p>
+          </div>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ type: 'airtable-oauth-success' }, '*');
+              setTimeout(() => window.close(), 500);
+            } else {
+              // Fallback: redirect if no opener
+              window.location.href = '${Deno.env.get('APP_URL') || ''}/app/onboarding?airtable_connected=true';
+            }
+          </script>
+        </body>
+      </html>
+    `, {
+      headers: { 'Content-Type': 'text/html' }
     });
   } catch (error) {
     console.error('Callback error:', error);
