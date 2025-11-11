@@ -18,7 +18,9 @@ const Auth = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('Auth useEffect:', { loading, user: !!user });
     if (!loading && user) {
+      console.log('Redirecting to /app');
       navigate("/app");
     }
   }, [user, loading, navigate]);
@@ -42,12 +44,18 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      await signIn(email, password);
+      const result = await signIn(email, password);
+      console.log('SignIn result:', result);
       toast.success("Connexion réussie !");
-      // Navigation handled by useEffect
+      
+      // Force navigation after a short delay to ensure state updates
+      setTimeout(() => {
+        console.log('Forcing navigation to /app');
+        navigate("/app", { replace: true });
+      }, 500);
     } catch (error: any) {
+      console.error('SignIn error:', error);
       toast.error(error.message || "Erreur lors de la connexion");
-    } finally {
       setIsLoading(false);
     }
   };
