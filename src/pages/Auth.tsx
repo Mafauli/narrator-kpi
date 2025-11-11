@@ -17,12 +17,6 @@ const Auth = () => {
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!loading && user) {
-      navigate("/app");
-    }
-  }, [user, loading, navigate]);
-
   // Show loading while checking auth
   if (loading) {
     return (
@@ -32,6 +26,12 @@ const Auth = () => {
     );
   }
 
+  // Redirect if already logged in
+  if (user) {
+    navigate("/app");
+    return null;
+  }
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -39,10 +39,10 @@ const Auth = () => {
     try {
       await signIn(email, password);
       toast.success("Connexion réussie !");
-      // Navigation handled by useEffect when user state updates
+      // Wait a bit for auth state to update, then navigate
+      setTimeout(() => navigate("/app"), 100);
     } catch (error: any) {
       toast.error(error.message || "Erreur lors de la connexion");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -54,10 +54,10 @@ const Auth = () => {
     try {
       await signUp(email, password);
       toast.success("Compte créé avec succès !");
-      // Navigation handled by useEffect when user state updates
+      // Wait a bit for auth state to update, then navigate
+      setTimeout(() => navigate("/app"), 100);
     } catch (error: any) {
       toast.error(error.message || "Erreur lors de l'inscription");
-    } finally {
       setIsLoading(false);
     }
   };
