@@ -22,7 +22,7 @@ async function ensureValidToken(
     return connection.access_token_encrypted;
   }
 
-  console.log("Token expired, refreshing...");
+  logger.info("Airtable token expired, refreshing", { userId });
   
   const refreshResponse = await supabase.functions.invoke("airtable-refresh-token", {
     headers: { Authorization: authHeader }
@@ -68,7 +68,7 @@ serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
-    console.log(`Fetching Airtable data for user: ${user.id}`);
+    logger.info("Fetching Airtable data", { userId: user.id });
 
     // Récupérer les vues actives de l'utilisateur
     const { data: views, error: viewsError } = await supabase
@@ -90,7 +90,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Found ${views.length} active views`);
+    logger.info("Active views found", { viewsCount: views.length });
 
     // Récupérer le token Airtable
     const { data: connection, error: connError } = await supabase
@@ -115,7 +115,9 @@ serve(async (req) => {
     try {
       accessToken = await ensureValidToken(supabase, user.id, authHeader, connection);
     } catch (refreshError) {
-      console.error("Failed to ensure valid token:", refreshError);
+      logger.error("Failed to ensure valid token", { 
+        error: refreshError instanceof Error ? refreshError.message : "Unknown error" 
+      });
       return new Response(
         JSON.stringify({ 
           error: "Airtable authentication expired",
@@ -132,7 +134,11 @@ serve(async (req) => {
 
     for (const view of views) {
       try {
-        console.log(`Fetching data from ${view.base_name} / ${view.table_name} / ${view.view_name}`);
+        logger.debug("Fetching view data", { 
+          base: view.base_name, 
+          table: view.table_name, 
+          view: view.view_name 
+        });
         
         // Appel à l'API Airtable
         const url = `https://api.airtable.com/v0/${view.base_id}/${encodeURIComponent(view.table_name)}?view=${encodeURIComponent(view.view_name)}`;
@@ -145,15 +151,14 @@ serve(async (req) => {
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`Airtable API error for view ${view.view_name}:`, {
-            status: response.status,
-            error: errorText
+          logger.warn("Airtable API error", { 
+            view: view.view_name,
+            status: response.status
           });
           
           // Si erreur 401, tenter de rafraîchir le token
           if (response.status === 401) {
-            console.log("Received 401, attempting token refresh...");
+            logger.info("Received 401, attempting token refresh");
             
             try {
               // Force token refresh by passing expired connection
@@ -183,11 +188,16 @@ serve(async (req) => {
                 });
 
                 totalRecords += retryRecords.length;
-                console.log(`Retrieved ${retryRecords.length} records from ${view.view_name} after token refresh`);
+                logger.info("Retrieved records after token refresh", { 
+                  view: view.view_name, 
+                  recordsCount: retryRecords.length 
+                });
                 continue;
               }
             } catch (refreshError) {
-              console.error("Failed to refresh token during retry:", refreshError);
+              logger.error("Failed to refresh token during retry", { 
+                error: refreshError instanceof Error ? refreshError.message : "Unknown error" 
+              });
               continue; // Skip this view
             }
           }
@@ -207,10 +217,16 @@ serve(async (req) => {
         });
 
         totalRecords += records.length;
-        console.log(`Retrieved ${records.length} records from ${view.view_name}`);
+        logger.info("Retrieved records", { 
+          view: view.view_name, 
+          recordsCount: records.length 
+        });
 
       } catch (error) {
-        console.error(`Error fetching view ${view.view_name}:`, error);
+        logger.error("Error fetching view", { 
+          view: view.view_name, 
+          error: error instanceof Error ? error.message : "Unknown error" 
+        });
       }
     }
 

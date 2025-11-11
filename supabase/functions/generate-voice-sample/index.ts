@@ -1,4 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const logger = createLogger("generate-voice-sample");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +27,7 @@ serve(async (req) => {
 
     const sampleText = text || "Bonjour, je suis ton assistant virtuel. Prêt à booster ta semaine ?";
 
-    console.log(`Generating voice sample for voice_id: ${voice_id}`);
+    logger.info("Generating voice sample", { voiceId: voice_id, textLength: sampleText.length });
 
     // Generate audio using ElevenLabs TTS
     const response = await fetch(
@@ -48,15 +51,15 @@ serve(async (req) => {
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("ElevenLabs TTS error status:", response.status);
-      console.error("Voice ID used:", voice_id);
-      console.error("Text length:", sampleText.length);
-      // Don't expose API key or full error to logs
+      logger.error("ElevenLabs TTS error", { 
+        status: response.status,
+        voiceId: voice_id,
+        textLength: sampleText.length
+      });
       throw new Error(`ElevenLabs TTS error (${response.status})`);
     }
 
-    console.log("Voice sample generated successfully");
+    logger.info("Voice sample generated successfully", { voiceId: voice_id });
 
     // Return audio stream
     return new Response(response.body, {
@@ -67,10 +70,14 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("Error generating sample:", error instanceof Error ? error.message : 'Unknown error');
-    const errorMessage = error instanceof Error ? error.message : "Erreur lors de la génération audio";
+    logger.error("Error generating voice sample", { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ 
+        error: "Failed to generate voice sample",
+        message: "Unable to generate audio. Please try again."
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

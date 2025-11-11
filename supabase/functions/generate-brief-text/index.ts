@@ -28,8 +28,7 @@ serve(async (req) => {
       throw new Error("DEEPSEEK_API_KEY not configured");
     }
 
-    console.log(`Generating brief text for domain: ${domain}`);
-    console.log(`Target duration: ${targetDurationMinutes} minutes`);
+    logger.info("Brief text generation requested", { domain, targetDuration: targetDurationMinutes });
 
     // Fetch system prompt from database if no custom prompt provided
     let systemPrompt = customPrompt;
@@ -51,7 +50,9 @@ serve(async (req) => {
           systemPrompt = promptData.prompt_text;
         }
       } catch (error) {
-        console.error('Error fetching system prompt:', error);
+        logger.warn("Error fetching system prompt from database", { 
+          error: error instanceof Error ? error.message : "Unknown error" 
+        });
       }
     }
 
@@ -61,7 +62,12 @@ serve(async (req) => {
     const targetWords = targetDurationMinutes * 150;
     const maxTokens = Math.ceil(targetWords * 1.5); // 1.5x safety margin
 
-    console.log(`Target words: ${targetWords}, Max tokens: ${maxTokens}`);
+    logger.info("Brief generation parameters", { 
+      domain,
+      targetWords, 
+      maxTokens,
+      targetDuration: targetDurationMinutes
+    });
 
     // Construire le prompt système - texte simple et direct
     const wordLimit = Math.ceil(targetWords * 1.1); // Allow 10% overflow
@@ -85,8 +91,6 @@ RÈGLES STRICTES:
       .replace(/\{\{wordLimit\}\}/g, wordLimit.toString())
       .replace(/\{\{targetWords\}\}/g, targetWords.toString());
 
-    console.log(`Brief generation started for ${domain}`);
-
     const generationStartTime = Date.now();
 
     // Appel à l'API DeepSeek avec modèle rapide
@@ -108,9 +112,7 @@ RÈGLES STRICTES:
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("DeepSeek API error status:", response.status);
-      // Don't expose full error details
+      logger.error("DeepSeek API error", { status: response.status });
       throw new Error(`DeepSeek API error: ${response.status}`);
     }
 
@@ -119,8 +121,11 @@ RÈGLES STRICTES:
     
     const generationDuration = Date.now() - generationStartTime;
 
-    console.log("Brief text generated successfully");
-    console.log(`Text length: ${generatedText.length} characters`);
+    logger.info("Brief text generated successfully", { 
+      textLength: generatedText.length,
+      duration: generationDuration,
+      tokensUsed: result.usage?.total_tokens || 0
+    });
 
     // Log to brief_generation_logs for cost tracking and prompt analysis
     if (authHeader && userId) {
@@ -148,9 +153,15 @@ RÈGLES STRICTES:
             generation_duration_ms: generationDuration,
           });
 
-        console.log(`Cost logged: $${cost.toFixed(6)} (${inputTokens}/${outputTokens} tokens)`);
+        logger.info("Cost logged", { 
+          cost: cost.toFixed(6), 
+          inputTokens, 
+          outputTokens 
+        });
       } catch (logError) {
-        console.error('Error logging to brief_generation_logs:', logError);
+        logger.warn("Error logging to brief_generation_logs", { 
+          error: logError instanceof Error ? logError.message : "Unknown error" 
+        });
         // Don't fail the request if logging fails
       }
     }

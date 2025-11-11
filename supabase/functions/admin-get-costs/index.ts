@@ -1,6 +1,9 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createLogger } from "../_shared/logger.ts";
+
+const logger = createLogger("admin-get-costs");
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -149,9 +152,14 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error in admin-get-costs:', error);
+    logger.error("Error calculating admin costs", { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }),
+      JSON.stringify({ 
+        error: "Failed to calculate costs",
+        message: "Unable to retrieve cost data. Please try again."
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

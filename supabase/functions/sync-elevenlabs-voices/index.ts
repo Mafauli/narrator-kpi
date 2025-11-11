@@ -20,7 +20,7 @@ serve(async (req) => {
       throw new Error("ELEVENLABS_API_KEY not configured");
     }
 
-    console.log("Fetching voices from ElevenLabs API...");
+    logger.info("Fetching voices from ElevenLabs API");
 
     // Fetch voices from ElevenLabs
     const response = await fetch("https://api.elevenlabs.io/v1/voices", {
@@ -31,20 +31,19 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("ElevenLabs API error:", response.status, errorText);
-      throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
+      logger.error("ElevenLabs API error", { status: response.status });
+      throw new Error(`ElevenLabs API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log(`Fetched ${data.voices.length} voices from ElevenLabs`);
+    logger.info("Fetched voices from ElevenLabs", { voicesCount: data.voices.length });
     
     // Filter for French voices only
     const frenchVoices = data.voices.filter((v: any) => 
       v.labels?.language === "fr" || v.labels?.language === "french"
     );
 
-    console.log(`Found ${frenchVoices.length} French voices`);
+    logger.info("French voices filtered", { frenchVoicesCount: frenchVoices.length });
 
     // Initialize Supabase with service role key
     const supabaseClient = createClient(
@@ -66,7 +65,7 @@ serve(async (req) => {
       updated_at: new Date().toISOString()
     }));
 
-    console.log("Upserting voices to database...");
+    logger.info("Upserting voices to database", { voicesCount: voicesToUpsert.length });
 
     // Upsert into database
     const { data: upsertedVoices, error: upsertError } = await supabaseClient
@@ -75,11 +74,11 @@ serve(async (req) => {
       .select();
 
     if (upsertError) {
-      console.error("Database upsert error:", upsertError);
+      logger.error("Database upsert error", { error: upsertError.message });
       throw upsertError;
     }
 
-    console.log(`Successfully synced ${upsertedVoices.length} voices`);
+    logger.info("Voices synced successfully", { syncedCount: upsertedVoices.length });
 
     return new Response(
       JSON.stringify({ 

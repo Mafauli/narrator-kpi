@@ -20,7 +20,7 @@ serve(async (req) => {
       throw new Error("ELEVENLABS_API_KEY not configured");
     }
 
-    console.log("Fetching French voices from ElevenLabs API...");
+    logger.info("Fetching French voices from ElevenLabs API");
 
     // Fetch voices from ElevenLabs
     const response = await fetch("https://api.elevenlabs.io/v1/voices", {
@@ -31,20 +31,19 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("ElevenLabs API error:", response.status, errorText);
-      throw new Error(`ElevenLabs API error: ${response.status} - ${errorText}`);
+      logger.error("ElevenLabs API error", { status: response.status });
+      throw new Error(`ElevenLabs API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log(`Fetched ${data.voices.length} voices from ElevenLabs`);
+    logger.info("Fetched voices from ElevenLabs", { voicesCount: data.voices.length });
     
-    // Log some voices to understand the structure
-    console.log("Sample voices:", data.voices.slice(0, 3).map((v: any) => ({
-      name: v.name,
-      labels: v.labels,
-      description: v.description?.substring(0, 50)
-    })));
+    logger.debug("Sample voices", { 
+      samples: data.voices.slice(0, 3).map((v: any) => ({
+        name: v.name,
+        language: v.labels?.language
+      }))
+    });
     
     // Filter for French voices (1 for the free tier)
     const frenchVoices = data.voices.filter((v: any) => {
@@ -57,7 +56,7 @@ serve(async (req) => {
              desc.includes("français");
     });
 
-    console.log(`Found ${frenchVoices.length} French voices`);
+    logger.info("French voices filtered", { frenchVoicesCount: frenchVoices.length });
 
     // For testing: Take the first French voice and the first 7 available voices
     // This ensures we have 8 voices mapped to 8 avatars
@@ -69,8 +68,10 @@ serve(async (req) => {
     // Remove duplicates
     const uniqueVoices = Array.from(new Map(selectedVoices.map(v => [v.voice_id, v])).values());
 
-    console.log(`Selected ${uniqueVoices.length} unique voices for 8 avatars`);
-    console.log(`Voice names: ${uniqueVoices.map((v: any) => v.name).join(", ")}`);
+    logger.info("Selected unique voices for avatars", { 
+      uniqueVoicesCount: uniqueVoices.length,
+      voiceNames: uniqueVoices.map((v: any) => v.name).join(", ")
+    });
 
     // Initialize Supabase with service role key
     const supabaseClient = createClient(
@@ -92,13 +93,13 @@ serve(async (req) => {
       updated_at: new Date().toISOString()
     }));
 
-    console.log("Upserting voices to database...");
+    logger.info("Upserting voices to database", { voicesCount: voicesToUpsert.length });
     const { error: upsertError } = await supabaseClient
       .from("elevenlabs_voices")
       .upsert(voicesToUpsert, { onConflict: "voice_id" });
 
     if (upsertError) {
-      console.error("Database upsert error:", upsertError);
+      logger.error("Database upsert error", { error: upsertError.message });
       throw upsertError;
     }
 
@@ -108,7 +109,7 @@ serve(async (req) => {
       .select("id, name, voice_reco");
 
     if (avatarsError) throw avatarsError;
-    console.log(`Found ${avatars.length} avatars`);
+    logger.info("Fetched avatars", { avatarsCount: avatars.length });
 
     // Create a map for fuzzy matching
     const voiceMap: Record<string, any> = {};
@@ -132,7 +133,11 @@ serve(async (req) => {
       const matchedVoice = uniqueVoices[voiceIndex];
       
       if (matchedVoice) {
-        console.log(`✓ Mapped ${avatar.name} → ${matchedVoice.name} (${matchedVoice.voice_id})`);
+        logger.debug("Mapped avatar to voice", { 
+          avatar: avatar.name, 
+          voice: matchedVoice.name, 
+          voiceId: matchedVoice.voice_id 
+        });
         mappings.push({
           avatar_id: avatar.id,
           voice_name: avatar.voice_reco,
@@ -143,7 +148,10 @@ serve(async (req) => {
       }
     });
 
-    console.log(`Successfully matched ${matchCount}/${avatars.length} avatars`);
+    logger.info("Avatar voice mapping completed", { 
+      matchedCount: matchCount, 
+      totalAvatars: avatars.length 
+    });
 
     // Insert mappings
     if (mappings.length > 0) {
@@ -160,11 +168,11 @@ serve(async (req) => {
         .select();
 
       if (mappingError) {
-        console.error("Mapping insert error:", mappingError);
+        logger.error("Mapping insert error", { error: mappingError.message });
         throw mappingError;
       }
 
-      console.log(`Inserted ${insertedMappings.length} voice mappings`);
+      logger.info("Voice mappings inserted", { mappingsCount: insertedMappings.length });
     }
 
     return new Response(

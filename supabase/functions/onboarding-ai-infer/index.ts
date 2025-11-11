@@ -110,7 +110,7 @@ serve(async (req) => {
       throw validationError;
     }
 
-    console.log(`[onboarding-ai-infer] Phase: ${phase}, User: ${user.id}`);
+    logger.info("Onboarding AI inference started", { phase, userId: user.id });
 
     // Fetch system prompt from database
     const systemPrompt = await getSystemPrompt(supabase);
@@ -128,7 +128,7 @@ serve(async (req) => {
         const maxCacheAge = 72 * 60 * 60 * 1000; // 72 hours
 
         if (cacheAge < maxCacheAge) {
-          console.log('[onboarding-ai-infer] Returning cached infer_json');
+          logger.info("Returning cached infer_json", { cacheAgeHours: (cacheAge / (60 * 60 * 1000)).toFixed(1) });
           return new Response(JSON.stringify(cachedOnboarding.infer_json), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
@@ -181,9 +181,10 @@ serve(async (req) => {
     });
 
     if (!deepseekResponse.ok) {
-      const errorText = await deepseekResponse.text();
-      console.error('[onboarding-ai-infer] DeepSeek error status:', deepseekResponse.status);
-      console.error('[onboarding-ai-infer] Error details:', errorText.substring(0, 200));
+      logger.error("DeepSeek API error", { 
+        status: deepseekResponse.status,
+        phase
+      });
       
       // Provide specific error messages based on status code
       if (deepseekResponse.status === 401 || deepseekResponse.status === 403) {
@@ -200,14 +201,20 @@ serve(async (req) => {
     const deepseekData = await deepseekResponse.json();
     const responseText = deepseekData.choices[0].message.content;
     
-    console.log('[onboarding-ai-infer] DeepSeek response length:', responseText.length);
+    logger.info("DeepSeek response received", { 
+      phase, 
+      responseLength: responseText.length,
+      tokensUsed: deepseekData.usage?.total_tokens || 0
+    });
 
     // Parse JSON response
     let parsedResponse;
     try {
       parsedResponse = JSON.parse(responseText);
     } catch (e) {
-      console.error('[onboarding-ai-infer] Failed to parse JSON:', e);
+      logger.error("Failed to parse DeepSeek JSON response", { 
+        error: e instanceof Error ? e.message : "Unknown error" 
+      });
       throw new Error('Invalid JSON response from DeepSeek');
     }
 
@@ -224,7 +231,7 @@ serve(async (req) => {
         });
 
       if (insertError) {
-        console.error('[onboarding-ai-infer] Error saving infer_json:', insertError);
+        logger.error("Error saving infer_json", { error: insertError.message });
       }
     } else {
       const { error: updateError } = await supabase
@@ -236,7 +243,7 @@ serve(async (req) => {
         .eq('user_id', user.id);
 
       if (updateError) {
-        console.error('[onboarding-ai-infer] Error saving final_context:', updateError);
+        logger.error("Error saving final_context", { error: updateError.message });
       }
     }
 
