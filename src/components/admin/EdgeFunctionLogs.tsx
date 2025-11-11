@@ -51,41 +51,32 @@ export const EdgeFunctionLogs = ({ functionName, title }: EdgeFunctionLogsProps)
     try {
       setLoading(true);
       
-      const { data, error } = await supabase.functions.invoke('supabase--edge-function-logs', {
+      const { data, error } = await supabase.functions.invoke('get-edge-logs', {
         body: { 
           function_name: functionName,
-          search: searchTerm || ""
+          search: searchTerm || "",
+          limit: 100
         }
       });
 
       if (error) throw error;
 
-      // Parser les logs retournés
-      const parsedLogs: LogEntry[] = [];
-      if (data && typeof data === 'string') {
-        const lines = data.split('\n');
-        for (const line of lines) {
-          try {
-            const logMatch = line.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+(\w+):\s+(.+)/);
-            if (logMatch) {
-              const [, timestamp, level, message] = logMatch;
-              parsedLogs.push({
-                timestamp: new Date(timestamp).getTime(),
-                event_type: 'Log',
-                level: level.toLowerCase(),
-                event_message: message,
-              });
-            }
-          } catch (e) {
-            console.error('Error parsing log line:', e);
-          }
+      // Use the logs array from response
+      if (data && data.logs && Array.isArray(data.logs)) {
+        setLogs(data.logs);
+        
+        // Show message if provided
+        if (data.message) {
+          toast.info(data.message);
         }
+      } else {
+        setLogs([]);
+        toast.info('Aucun log disponible pour cette fonction');
       }
-
-      setLogs(parsedLogs);
     } catch (error) {
       console.error('Error fetching logs:', error);
       toast.error('Erreur lors du chargement des logs');
+      setLogs([]);
     } finally {
       setLoading(false);
     }
