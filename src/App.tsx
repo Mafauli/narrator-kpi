@@ -10,6 +10,7 @@ import Onboarding from "./pages/Onboarding";
 import TestBriefGeneration from "./pages/TestBriefGeneration";
 import Admin from "./pages/Admin";
 import AdminPrompts from "./pages/AdminPrompts";
+import AdminDatabase from "./pages/AdminDatabase";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -47,6 +48,11 @@ const App = () => (
           <Route path="/app/admin/prompts" element={
             <ProtectedRoute>
               <AdminPrompts />
+            </ProtectedRoute>
+          } />
+          <Route path="/app/admin/database" element={
+            <ProtectedRoute>
+              <AdminDatabase />
             </ProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
