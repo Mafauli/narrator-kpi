@@ -39,7 +39,7 @@ const Auth = () => {
     try {
       await signIn(email, password);
       toast.success("Connexion réussie !");
-      navigate("/app");
+      // Navigation handled by useEffect when user state updates
     } catch (error: any) {
       toast.error(error.message || "Erreur lors de la connexion");
     } finally {
@@ -53,8 +53,8 @@ const Auth = () => {
 
     try {
       await signUp(email, password);
-      toast.success("Compte créé avec succès ! Vous pouvez vous connecter.");
-      navigate("/app");
+      toast.success("Compte créé avec succès !");
+      // Navigation handled by useEffect when user state updates
     } catch (error: any) {
       toast.error(error.message || "Erreur lors de l'inscription");
     } finally {
