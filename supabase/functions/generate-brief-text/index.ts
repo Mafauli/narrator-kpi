@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,7 +13,8 @@ serve(async (req) => {
   }
 
   try {
-    const { domain, data, customPrompt, targetDurationMinutes = 2 } = await req.json();
+    const authHeader = req.headers.get('Authorization');
+    const { domain, data, customPrompt, targetDurationMinutes = 2, briefId, userId } = await req.json();
     
     if (!domain || !data) {
       throw new Error("domain and data are required");
@@ -48,6 +50,8 @@ RÈGLES STRICTES:
 
     console.log(`Brief generation started for ${domain}`);
 
+    const generationStartTime = Date.now();
+
     // Appel à l'API DeepSeek avec modèle rapide
     const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
@@ -74,9 +78,44 @@ RÈGLES STRICTES:
 
     const result = await response.json();
     const generatedText = result.choices[0].message.content.trim();
+    
+    const generationDuration = Date.now() - generationStartTime;
 
     console.log("Brief text generated successfully");
     console.log(`Text length: ${generatedText.length} characters`);
+
+    // Log to brief_generation_logs for cost tracking and prompt analysis
+    if (authHeader && userId) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        const inputTokens = result.usage?.prompt_tokens || 0;
+        const outputTokens = result.usage?.completion_tokens || 0;
+        
+        // Calculate cost: $0.28/1M input tokens, $0.42/1M output tokens
+        const cost = (inputTokens * 0.28 / 1_000_000) + (outputTokens * 0.42 / 1_000_000);
+
+        await supabase
+          .from('brief_generation_logs')
+          .insert({
+            brief_id: briefId || null,
+            user_id: userId,
+            prompt_text_used: systemPrompt,
+            deepseek_response_full: generatedText,
+            deepseek_tokens_input: inputTokens,
+            deepseek_tokens_output: outputTokens,
+            deepseek_cost: cost,
+            generation_duration_ms: generationDuration,
+          });
+
+        console.log(`Cost logged: $${cost.toFixed(6)} (${inputTokens}/${outputTokens} tokens)`);
+      } catch (logError) {
+        console.error('Error logging to brief_generation_logs:', logError);
+        // Don't fail the request if logging fails
+      }
+    }
 
     return new Response(
       JSON.stringify({ 

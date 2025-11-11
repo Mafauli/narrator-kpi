@@ -199,6 +199,7 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
             data: userPrompt,
             customPrompt: systemPrompt,
             targetDurationMinutes,
+            userId: user.id,
           },
         });
 
