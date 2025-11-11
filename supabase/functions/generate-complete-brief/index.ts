@@ -265,7 +265,7 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
 
     const { data: briefData, error: briefError } = await supabase
       .from("briefs")
-      .insert({
+      .upsert({
         user_id: user.id,
         week_start: weekStart,
         script_text: briefText,
@@ -278,6 +278,8 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
           estimated_tokens: filteredRecords * 200,
         },
         email_status: "pending",
+      }, {
+        onConflict: "user_id,week_start",
       })
       .select()
       .single();
