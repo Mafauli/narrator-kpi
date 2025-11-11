@@ -174,7 +174,7 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
     const userPrompt = `Voici les données de la semaine ${weekStart} :\n\n${JSON.stringify(filteredData, null, 2)}`;
 
     // Étape 5: Génération du texte avec DeepSeek
-    addLog("info", "🤖", "Génération du brief avec DeepSeek...");
+    addLog("info", "🤖", "Analyse intelligente de vos KPIs...");
 
     const deepseekResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-brief-text`, {
       method: "POST",

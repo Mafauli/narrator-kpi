@@ -428,8 +428,8 @@ const Onboarding = () => {
       });
 
       // Update UI with estimated progress
-      setTimeout(() => setGenerationStep("🤖 Analyse des données avec DeepSeek..."), 3000);
-      setTimeout(() => setGenerationStep("🎙️ Génération audio avec ElevenLabs..."), 25000);
+      setTimeout(() => setGenerationStep("🤖 Analyse intelligente de vos KPIs..."), 3000);
+      setTimeout(() => setGenerationStep("🎙️ Génération de l'audio..."), 25000);
       setTimeout(() => setGenerationStep("💾 Finalisation du brief..."), 47000);
       
       const { data: briefData, error: briefError } = await generationPromise;
