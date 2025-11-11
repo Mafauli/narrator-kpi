@@ -28,6 +28,30 @@ serve(async (req) => {
     console.log(`Generating brief text for domain: ${domain}`);
     console.log(`Target duration: ${targetDurationMinutes} minutes`);
 
+    // Fetch system prompt from database if no custom prompt provided
+    let systemPrompt = customPrompt;
+    
+    if (!customPrompt && authHeader) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        const { data: promptData } = await supabase
+          .from('system_prompts')
+          .select('prompt_text')
+          .eq('name', 'brief-text-generation')
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (promptData?.prompt_text) {
+          systemPrompt = promptData.prompt_text;
+        }
+      } catch (error) {
+        console.error('Error fetching system prompt:', error);
+      }
+    }
+
     // Calculate dynamic max_tokens based on target duration
     // Average speaking rate: ~150 words/minute in French
     // 1 token ≈ 0.75 words for French
@@ -38,7 +62,10 @@ serve(async (req) => {
 
     // Construire le prompt système - texte simple et direct
     const wordLimit = Math.ceil(targetWords * 1.1); // Allow 10% overflow
-    const systemPrompt = customPrompt || `Tu es expert dans ${domain}. 
+    
+    // If no system prompt was found, use default
+    if (!systemPrompt) {
+      systemPrompt = `Tu es expert dans ${domain}. 
 Génère un texte fluide et naturel prêt à être lu à voix haute.
 
 RÈGLES STRICTES:
@@ -47,6 +74,13 @@ RÈGLES STRICTES:
 - Texte direct pour synthèse vocale
 - Style oral et conversationnel
 - Ne dépasse jamais ${wordLimit} mots`;
+    }
+
+    // Replace variables in prompt
+    systemPrompt = systemPrompt
+      .replace(/\{\{domain\}\}/g, domain)
+      .replace(/\{\{wordLimit\}\}/g, wordLimit.toString())
+      .replace(/\{\{targetWords\}\}/g, targetWords.toString());
 
     console.log(`Brief generation started for ${domain}`);
 

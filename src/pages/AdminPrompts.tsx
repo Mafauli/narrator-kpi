@@ -24,6 +24,7 @@ const AdminPrompts = () => {
   const { isAdmin, loading: authLoading } = useAdminAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [selectedPromptName, setSelectedPromptName] = useState<string>('brief-text-generation');
   const [currentPrompt, setCurrentPrompt] = useState<SystemPrompt | null>(null);
   const [allVersions, setAllVersions] = useState<SystemPrompt[]>([]);
 
@@ -41,7 +42,7 @@ const AdminPrompts = () => {
       const { data: activePrompt, error: activeError } = await supabase
         .from('system_prompts')
         .select('*')
-        .eq('name', 'deepseek-brief-generation')
+        .eq('name', selectedPromptName)
         .eq('is_active', true)
         .maybeSingle();
 
@@ -51,7 +52,7 @@ const AdminPrompts = () => {
       const { data: versions, error: versionsError } = await supabase
         .from('system_prompts')
         .select('*')
-        .eq('name', 'deepseek-brief-generation')
+        .eq('name', selectedPromptName)
         .order('version', { ascending: false });
 
       if (versionsError) throw versionsError;
@@ -69,7 +70,7 @@ const AdminPrompts = () => {
     if (isAdmin) {
       fetchPrompts();
     }
-  }, [isAdmin]);
+  }, [isAdmin, selectedPromptName]);
 
   if (authLoading || loading) {
     return (
@@ -89,8 +90,31 @@ const AdminPrompts = () => {
         <div>
           <h2 className="text-3xl font-bold text-foreground mb-2">Gestion des Prompts</h2>
           <p className="text-muted-foreground">
-            Éditez le prompt DeepSeek, consultez l'historique et analysez les réponses générées
+            Éditez les prompts DeepSeek, consultez l'historique et analysez les réponses générées
           </p>
+        </div>
+
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setSelectedPromptName('brief-text-generation')}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              selectedPromptName === 'brief-text-generation'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            Génération de Brief
+          </button>
+          <button
+            onClick={() => setSelectedPromptName('onboarding-ai-infer')}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              selectedPromptName === 'onboarding-ai-infer'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            }`}
+          >
+            Onboarding AI
+          </button>
         </div>
 
         <Tabs defaultValue="editor" className="space-y-6">

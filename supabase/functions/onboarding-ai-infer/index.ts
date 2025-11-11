@@ -11,58 +11,21 @@ const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-const SYSTEM_PROMPT = `Tu es "KPI Narrator", un analyste prudent. Tu gères 2 phases contrôlées par "phase": "infer" ou "refine".
-Règles:
-- Réponds UNIQUEMENT par un objet JSON valide (UTF-8), sans markdown, sans code fence.
-- N'invente aucune donnée non visible. Si incertain, indique-le.
-- Reste concis, clair, en {lang} pour les messages destinés à l'utilisateur.
+// Fetch system prompt from database
+const getSystemPrompt = async (supabase: any): Promise<string> => {
+  const { data: promptData } = await supabase
+    .from('system_prompts')
+    .select('prompt_text')
+    .eq('name', 'onboarding-ai-infer')
+    .eq('is_active', true)
+    .maybeSingle();
 
-PHASE "infer" (à partir des vues Airtable)
-Inputs attendus:
-- lang, tz
-- views_schema: [{view_name, table_name, fields:[{name,type}], row_count?}]
-- samples: [{view_name, rows:[{...}]}]
-Objectif:
-1) Deviner le secteur probable (ecommerce/saas/services/other) et pourquoi.
-2) Proposer 3–6 KPIs cohérents.
-3) Lister les champs manquants utiles (si besoin).
-4) Générer:
-   - pitch_message (≤ 90 mots, une seule question en fin)
-   - sample_brief (90–120s max, structure simple: 1 phrase contexte, 3–4 insights, 3 actions Titre|Pourquoi|Comment)
-5) Construire un "context" provisoire minimal, éditable ensuite.
+  if (!promptData?.prompt_text) {
+    throw new Error('Active system prompt not found for onboarding-ai-infer');
+  }
 
-PHASE "refine" (fusionner avec la réponse libre de l'utilisateur)
-Inputs attendus:
-- lang, tz
-- prior_inference: JSON complet renvoyé en phase "infer"
-- user_reply_raw: texte libre
-Objectif:
-1) Mettre à jour un "context" final (éditable) en intégrant la réponse utilisateur (ton, objectifs, KPIs, contraintes).
-2) confirmation_message (≤ 80 mots) résumant secteur, North Star s'il existe, 2–4 KPIs; poser une unique question si nécessaire.
-3) sample_brief régénéré cohérent avec le nouveau context.
-
-Format de sortie (même schéma pour les deux phases)
-{
-  "sector_guess": "ecommerce|saas|services|other",
-  "why_signals": ["brefs indices détectés"],
-  "suggested_kpis": ["..."],
-  "missing_fields": ["..."],
-  "confidence": "low|medium|high",
-  "pitch_message": "string en {lang}",
-  "sample_brief": "string en {lang}",
-  "context": {
-    "sector_final": "ecommerce|saas|services|other|null",
-    "north_star_metric": "string|null",
-    "kpis_final": ["string", ...],
-    "goals": [{"label":"string","target_value":"string|null","horizon":"30j|90j|quarter|year|null"}],
-    "constraints": ["string", ...],
-    "preferred_tone": "no-bs|sobre|coach|energique|null",
-    "language": "{lang}",
-    "timezone": "{tz}",
-    "data_sources": ["airtable", "shopify", "ga4", "meta_ads", ...]
-  },
-  "confirmation_message": "string en {lang}"
-}`;
+  return promptData.prompt_text;
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -97,6 +60,9 @@ serve(async (req) => {
     }
 
     console.log(`[onboarding-ai-infer] Phase: ${phase}, User: ${user.id}`);
+
+    // Fetch system prompt from database
+    const systemPrompt = await getSystemPrompt(supabase);
 
     // Check cache for infer phase
     if (phase === 'infer') {
@@ -155,7 +121,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: JSON.stringify(userMessage) }
         ],
         response_format: { type: 'json_object' },
