@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.admin-get-costs]
 verify_jwt = true
+
+[functions.onboarding-ai-infer]
+verify_jwt = true

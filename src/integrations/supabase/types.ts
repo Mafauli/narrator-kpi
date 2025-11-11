@@ -336,6 +336,33 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding: {
+        Row: {
+          created_at: string
+          final_context: Json | null
+          id: string
+          infer_json: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          final_context?: Json | null
+          id?: string
+          infer_json?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          final_context?: Json | null
+          id?: string
+          infer_json?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       preferences: {
         Row: {
           avatar_id: string | null
