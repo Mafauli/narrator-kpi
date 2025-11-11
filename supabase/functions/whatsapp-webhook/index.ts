@@ -8,6 +8,11 @@ const VERIFY_TOKEN = Deno.env.get("WEBHOOK_VERIFY_TOKEN");
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 100; // max 100 requests per minute per IP
+const requestCounts = new Map<string, { count: number; resetTime: number }>();
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -17,6 +22,25 @@ serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate limiting by IP
+  const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
+  const now = Date.now();
+  
+  const rateLimit = requestCounts.get(clientIp);
+  if (rateLimit) {
+    if (now < rateLimit.resetTime) {
+      if (rateLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
+        logger.warn('Rate limit exceeded', { ip: clientIp });
+        return new Response('Rate limit exceeded', { status: 429 });
+      }
+      rateLimit.count++;
+    } else {
+      requestCounts.set(clientIp, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    }
+  } else {
+    requestCounts.set(clientIp, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
   }
 
   const url = new URL(req.url);
@@ -35,16 +59,17 @@ serve(async (req) => {
 
     // Check if mode and token are valid
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-      logger.info('Webhook verified successfully');
+      logger.info('Webhook verified successfully', { ip: clientIp });
       // Respond with the challenge token from the request
       return new Response(challenge, {
         status: 200,
         headers: { 'Content-Type': 'text/plain' },
       });
     } else {
-      logger.error('Webhook verification failed', { 
+      logger.warn('Webhook verification failed - invalid token', { 
+        ip: clientIp,
         mode, 
-        token_match: token === VERIFY_TOKEN 
+        has_verify_token: !!VERIFY_TOKEN
       });
       return new Response('Forbidden', { status: 403 });
     }
@@ -54,21 +79,46 @@ serve(async (req) => {
   if (req.method === 'POST') {
     try {
       const body = await req.json();
+      
+      // Validate webhook payload structure
+      if (!body.entry || !Array.isArray(body.entry)) {
+        logger.warn('Invalid webhook payload - missing or invalid entry array', { ip: clientIp });
+        return new Response(JSON.stringify({ error: 'Invalid payload structure' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       logger.info('Received WhatsApp webhook event', { 
-        entries_count: body.entry?.length || 0 
+        ip: clientIp,
+        entries_count: body.entry.length 
       });
 
       // Process status updates
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       
-      for (const entry of body.entry || []) {
+      for (const entry of body.entry) {
         for (const change of entry.changes || []) {
           const statuses = change.value?.statuses;
           
           if (statuses && statuses.length > 0) {
             for (const status of statuses) {
+              // Validate message ID format (should be alphanumeric)
               const messageId = status.id;
+              if (!messageId || typeof messageId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(messageId)) {
+                logger.warn('Invalid message ID format', { message_id: messageId, ip: clientIp });
+                continue;
+              }
+              
               const statusType = status.status; // sent, delivered, read, failed
+              
+              // Validate status type
+              const validStatuses = ['sent', 'delivered', 'read', 'failed'];
+              if (!validStatuses.includes(statusType)) {
+                logger.warn('Invalid status type', { status: statusType, message_id: messageId });
+                continue;
+              }
+              
               const timestamp = new Date(parseInt(status.timestamp) * 1000).toISOString();
               
               logger.info('Processing status update', { 

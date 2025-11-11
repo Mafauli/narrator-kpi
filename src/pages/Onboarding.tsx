@@ -111,7 +111,6 @@ const Onboarding = () => {
           viewName: v.view_name
         }));
         setSelectedViews(loadedViews);
-        console.log('✅ Loaded existing views:', loadedViews.length);
       }
 
       // Load existing preferences
@@ -136,8 +135,6 @@ const Onboarding = () => {
         if (prefsData.avatar_id) {
           setSelectedVoice(prefsData.voice_id || '');
         }
-        
-        console.log('✅ Loaded existing preferences');
       }
 
       // Check if Airtable is connected
@@ -149,7 +146,6 @@ const Onboarding = () => {
 
       if (connData) {
         setAirtableConnected(true);
-        console.log('✅ Airtable already connected');
         
         // Auto-load bases if connected
         const stepParam = searchParams.get('step');
@@ -173,14 +169,12 @@ const Onboarding = () => {
 
       if (avatarsData) {
         setAvatars(avatarsData);
-        console.log('✅ Loaded avatars:', avatarsData.length);
         
         // Pre-select avatar if exists in preferences
         if (prefsData?.avatar_id) {
           const avatar = avatarsData.find(a => a.id === prefsData.avatar_id);
           if (avatar) {
             setSelectedAvatar(avatar);
-            console.log('✅ Pre-selected avatar:', avatar.name);
           }
         }
       }
@@ -191,8 +185,6 @@ const Onboarding = () => {
 
   const fetchBases = async () => {
     try {
-      console.log('🔍 Fetching Airtable bases...');
-      
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast.error("Session expirée, reconnecte-toi");
@@ -201,27 +193,21 @@ const Onboarding = () => {
 
       const { data, error } = await supabase.functions.invoke('airtable-list-bases');
       
-      console.log('📦 Response:', { data, error });
-      
       if (error) {
-        console.error('❌ Error from edge function:', error);
         throw error;
       }
       
       if (!data || !data.bases) {
-        console.warn('⚠️ No bases in response:', data);
         toast.error("Aucune base trouvée");
         return;
       }
       
-      console.log('✅ Bases loaded:', data.bases.length);
       setBases(data.bases || []);
       
       if (data.bases && data.bases.length > 0) {
         setStep(2); // Move to view selection
       }
     } catch (error: any) {
-      console.error('❌ Error in fetchBases:', error);
       toast.error(`Erreur: ${error.message || "Erreur lors du chargement des bases"}`);
     }
   };
@@ -241,7 +227,6 @@ const Onboarding = () => {
       setTables(data.tables || []);
     } catch (error: any) {
       toast.error("Erreur lors du chargement des tables");
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -341,22 +326,16 @@ const Onboarding = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non connecté");
 
-      console.log('🔐 Starting OAuth flow for user:', user.id);
-
       const state = user.id;
       const { data, error } = await supabase.functions.invoke('airtable-oauth-start', {
         body: { userId: user.id, state }
       });
 
       if (error) {
-        console.error('❌ OAuth start error:', error);
         throw error;
       }
 
-      console.log('✅ OAuth URL received:', data.authUrl);
-
       // Open OAuth in popup window
-      console.log('🔄 Opening Airtable OAuth popup...');
       const popup = window.open(
         data.authUrl,
         'airtable-oauth',
@@ -372,14 +351,12 @@ const Onboarding = () => {
       // Listen for OAuth completion message
       const handleOAuthMessage = (event: MessageEvent) => {
         if (event.data.type === 'airtable-oauth-success') {
-          console.log('✅ OAuth success received via postMessage');
           window.removeEventListener('message', handleOAuthMessage);
           setAirtableConnected(true);
           toast.success("Connexion Airtable établie !");
           fetchBases();
           setIsLoading(false);
         } else if (event.data.type === 'airtable-oauth-error') {
-          console.error('❌ OAuth error:', event.data.error);
           window.removeEventListener('message', handleOAuthMessage);
           toast.error("Erreur lors de la connexion Airtable");
           setIsLoading(false);
@@ -396,7 +373,6 @@ const Onboarding = () => {
         }
       }, 120000);
     } catch (error: any) {
-      console.error('❌ Error in handleConnectAirtable:', error);
       toast.error(error.message || "Erreur lors de la connexion");
       setIsLoading(false);
     }

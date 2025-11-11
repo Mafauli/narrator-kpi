@@ -53,7 +53,7 @@ export default function Dashboard() {
         if (scheduleError) throw scheduleError;
         setActiveSchedule(scheduleData);
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        // Error handled silently - user will see empty state
       } finally {
         setLoading(false);
       }
@@ -77,7 +77,7 @@ export default function Dashboard() {
 
       setActiveSchedule({ ...activeSchedule, is_active: !activeSchedule.is_active });
     } catch (error) {
-      console.error('Error toggling schedule:', error);
+      // Error handled silently - schedule state remains unchanged
     }
   };
 
