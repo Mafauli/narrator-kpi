@@ -430,7 +430,8 @@ const Onboarding = () => {
       // Update UI with estimated progress
       setTimeout(() => setGenerationStep("🤖 Analyse intelligente de vos KPIs..."), 3000);
       setTimeout(() => setGenerationStep("🎙️ Génération de l'audio..."), 25000);
-      setTimeout(() => setGenerationStep("💾 Finalisation du brief..."), 47000);
+      setTimeout(() => setGenerationStep("☁️ Upload de l'audio..."), 47000);
+      setTimeout(() => setGenerationStep("💾 Finalisation du brief..."), 49000);
       
       const { data: briefData, error: briefError } = await generationPromise;
 

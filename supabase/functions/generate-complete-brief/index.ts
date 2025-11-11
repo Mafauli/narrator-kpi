@@ -241,26 +241,39 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
       throw new Error(`Failed to generate voice sample: ${errorText}`);
     }
 
-    // Convertir l'audio en base64 par chunks pour éviter stack overflow
+    // Convertir l'audio en buffer pour upload
     const audioBuffer = await elevenLabsResponse.arrayBuffer();
-    const bytes = new Uint8Array(audioBuffer);
     
-    // Convertir par chunks de 32KB pour éviter "Maximum call stack size exceeded"
-    const chunkSize = 32 * 1024;
-    let binary = '';
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.slice(i, i + chunkSize);
-      binary += String.fromCharCode.apply(null, Array.from(chunk));
-    }
-    
-    const audioBase64 = btoa(binary);
-    const audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
-
     addLog("info", "  └─", `Voix: ${voice?.name || voiceId}`);
     addLog("info", "  └─", `Modèle: eleven_multilingual_v2`);
     addLog("success", "✅", "Audio généré");
 
-    // Étape 7: Sauvegarde dans la table briefs
+    // Étape 7: Upload vers Storage
+    addLog("info", "☁️", "Upload de l'audio...");
+    
+    const fileName = `${user.id}/${weekStart}_${Date.now()}.mp3`;
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
+      .from('briefs-audio')
+      .upload(fileName, audioBuffer, {
+        contentType: 'audio/mpeg',
+        upsert: true
+      });
+
+    if (uploadError) {
+      addLog("error", "❌", "Erreur upload", uploadError.message);
+      throw uploadError;
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase
+      .storage
+      .from('briefs-audio')
+      .getPublicUrl(fileName);
+
+    addLog("success", "✅", "Audio uploadé", publicUrl);
+
+    // Étape 8: Sauvegarde dans la table briefs
     addLog("info", "💾", "Sauvegarde du brief...");
 
     const { data: briefData, error: briefError } = await supabase
@@ -269,7 +282,7 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
         user_id: user.id,
         week_start: weekStart,
         script_text: briefText,
-        audio_url: audioUrl,
+        audio_url: publicUrl,
         actions_json: parsedBrief.actions || [],
         facts_json: {
           total_records: totalRecords,
@@ -299,7 +312,7 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
         success: true,
         brief_id: briefData.id,
         brief_text: parsedBrief,
-        audio_url: audioUrl,
+        audio_url: publicUrl,
         logs: logs,
         metadata: {
           total_records: totalRecords,
