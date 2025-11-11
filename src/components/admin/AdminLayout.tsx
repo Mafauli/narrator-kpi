@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Database, FileText, Activity, LogOut } from "lucide-react";
+import { LayoutDashboard, Database, FileText, Activity, Users, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface AdminLayoutProps {
@@ -16,6 +16,7 @@ export const AdminLayout = ({ children }: AdminLayoutProps) => {
     { path: "/app/admin/prompts", icon: FileText, label: "Prompts" },
     { path: "/app/admin/database", icon: Database, label: "Database" },
     { path: "/app/admin/logs", icon: Activity, label: "Logs" },
+    { path: "/app/admin/avatars", icon: Users, label: "Avatars" },
   ];
 
   return (
