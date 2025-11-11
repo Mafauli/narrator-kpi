@@ -166,11 +166,10 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
 }
 
 **Contraintes :**
-- Durée orale cible : 45 secondes à 1 minute (100-150 mots total maximum)
+- Durée orale cible : 1min30 à 2min (200-300 mots total)
 - Langage simple, pas de jargon
-- 2 actions concrètes maximum
-- Chiffres clairs et comparatifs si possible
-- SOIS ULTRA CONCIS pour économiser les crédits audio`;
+- 2-3 actions concrètes maximum
+- Chiffres clairs et comparatifs si possible`;
 
     const userPrompt = `Voici les données de la semaine ${weekStart} :\n\n${JSON.stringify(filteredData, null, 2)}`;
 
