@@ -370,6 +370,7 @@ export type Database = {
           business_model: Database["public"]["Enums"]["business_model"]
           created_at: string
           currency: string
+          first_name: string | null
           goal_value: number | null
           kpi_pack_json: Json | null
           lang: string
@@ -384,6 +385,7 @@ export type Database = {
           updated_at: string
           user_id: string
           voice_id: string | null
+          whatsapp_phone: string | null
         }
         Insert: {
           avatar_id?: string | null
@@ -391,6 +393,7 @@ export type Database = {
           business_model?: Database["public"]["Enums"]["business_model"]
           created_at?: string
           currency?: string
+          first_name?: string | null
           goal_value?: number | null
           kpi_pack_json?: Json | null
           lang?: string
@@ -405,6 +408,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           voice_id?: string | null
+          whatsapp_phone?: string | null
         }
         Update: {
           avatar_id?: string | null
@@ -412,6 +416,7 @@ export type Database = {
           business_model?: Database["public"]["Enums"]["business_model"]
           created_at?: string
           currency?: string
+          first_name?: string | null
           goal_value?: number | null
           kpi_pack_json?: Json | null
           lang?: string
@@ -426,6 +431,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           voice_id?: string | null
+          whatsapp_phone?: string | null
         }
         Relationships: [
           {

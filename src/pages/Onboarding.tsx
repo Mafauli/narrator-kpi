@@ -314,6 +314,13 @@ const Onboarding = () => {
   const [avatarToneFilter, setAvatarToneFilter] = useState<string>("all");
   const [selectedVoice, setSelectedVoice] = useState<string>("");
 
+  // Step 5: Test brief
+  const [firstName, setFirstName] = useState("");
+  const [whatsappPhone, setWhatsappPhone] = useState("");
+  const [showTestBriefForm, setShowTestBriefForm] = useState(false);
+  const [generatingBrief, setGeneratingBrief] = useState(false);
+  const [generationStep, setGenerationStep] = useState("");
+
   // ElevenLabs voices
   const { voices, loading: voicesLoading, syncing, syncVoices } = useElevenLabsVoices();
 
@@ -392,9 +399,61 @@ const Onboarding = () => {
     }
   };
 
-  const handleComplete = () => {
-    toast.success("Configuration terminée !");
-    navigate("/app");
+  const handleGenerateAndSendBrief = async () => {
+    if (!firstName || !whatsappPhone) {
+      toast.error("Renseigne ton prénom et ton numéro WhatsApp");
+      return;
+    }
+
+    setGeneratingBrief(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Non connecté");
+
+      // Save first name and phone to preferences
+      await supabase.from("preferences").update({
+        first_name: firstName,
+        whatsapp_phone: whatsappPhone
+      }).eq("user_id", user.id);
+
+      // Step 1: Generate complete brief (text + audio)
+      setGenerationStep("📊 Récupération de vos données Airtable...");
+      
+      const { data: briefData, error: briefError } = await supabase.functions.invoke('generate-complete-brief', {
+        body: { 
+          user_id: user.id,
+          include_first_name: firstName 
+        }
+      });
+
+      if (briefError) throw briefError;
+      if (!briefData?.brief_id) throw new Error("Brief ID manquant");
+
+      // Step 2: Send via WhatsApp
+      setGenerationStep("📱 Envoi de ton brief sur WhatsApp...");
+      
+      const { error: sendError } = await supabase.functions.invoke('send-whatsapp-brief', {
+        body: {
+          brief_id: briefData.brief_id,
+          phone_number: whatsappPhone
+        }
+      });
+
+      if (sendError) throw sendError;
+
+      setGenerationStep("✅ Brief envoyé avec succès !");
+      toast.success("🎉 Ton premier brief est en route sur WhatsApp !");
+      
+      setTimeout(() => {
+        navigate("/app");
+      }, 2000);
+    } catch (error: any) {
+      console.error("Error generating brief:", error);
+      toast.error(error.message || "Erreur lors de la génération du brief");
+      setGenerationStep("");
+    } finally {
+      setGeneratingBrief(false);
+    }
   };
 
   const handleSaveAvatar = async () => {
@@ -931,13 +990,70 @@ const Onboarding = () => {
                   Tu peux modifier ces paramètres à tout moment depuis la page Paramètres.
                 </p>
 
-                <Button
-                  className="w-full bg-accent hover:bg-accent/90"
-                  onClick={handleComplete}
-                  size="lg"
-                >
-                  Accéder au dashboard
-                </Button>
+                {!showTestBriefForm && !generatingBrief && (
+                  <Button
+                    className="w-full bg-accent hover:bg-accent/90"
+                    onClick={() => setShowTestBriefForm(true)}
+                    size="lg"
+                  >
+                    🎁 Recevoir mon premier brief gratuitement sur WhatsApp
+                  </Button>
+                )}
+
+                {showTestBriefForm && !generatingBrief && (
+                  <div className="space-y-4 border-t pt-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">Comment voulez-vous que je vous appelle ?</Label>
+                      <Input
+                        id="firstName"
+                        placeholder="Votre prénom"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="whatsappPhone">Numéro WhatsApp</Label>
+                      <Input
+                        id="whatsappPhone"
+                        placeholder="+33612345678"
+                        value={whatsappPhone}
+                        onChange={(e) => setWhatsappPhone(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Format : indicatif + numéro (ex: +33612345678)
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setShowTestBriefForm(false)}
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        className="flex-1 bg-accent hover:bg-accent/90"
+                        onClick={handleGenerateAndSendBrief}
+                      >
+                        Envoyer mon brief 🚀
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {generatingBrief && (
+                  <div className="space-y-4 border-t pt-6">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+                      <p className="text-center font-medium text-lg">{generationStep}</p>
+                      <p className="text-center text-sm text-muted-foreground">
+                        {generationStep.includes("Airtable") && "On analyse tes données pour comprendre ton activité..."}
+                        {generationStep.includes("WhatsApp") && "Plus que quelques secondes avant de recevoir ton brief ! 📱"}
+                        {generationStep.includes("succès") && "C'est parti ! Direction ton WhatsApp 🎉"}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
