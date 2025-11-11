@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_logs: {
+        Row: {
+          action_type: string
+          admin_user_id: string
+          changes: Json | null
+          created_at: string | null
+          id: string
+          target_id: string | null
+          target_table: string | null
+        }
+        Insert: {
+          action_type: string
+          admin_user_id: string
+          changes?: Json | null
+          created_at?: string | null
+          id?: string
+          target_id?: string | null
+          target_table?: string | null
+        }
+        Update: {
+          action_type?: string
+          admin_user_id?: string
+          changes?: Json | null
+          created_at?: string | null
+          id?: string
+          target_id?: string | null
+          target_table?: string | null
+        }
+        Relationships: []
+      }
       airtable_views: {
         Row: {
           base_id: string
@@ -141,6 +171,56 @@ export type Database = {
           voice_reco?: string
         }
         Relationships: []
+      }
+      brief_generation_logs: {
+        Row: {
+          brief_id: string | null
+          created_at: string | null
+          deepseek_cost: number
+          deepseek_response_full: string
+          deepseek_tokens_input: number
+          deepseek_tokens_output: number
+          generation_duration_ms: number | null
+          id: string
+          prompt_text_used: string
+          prompt_version_id: string | null
+          user_id: string
+        }
+        Insert: {
+          brief_id?: string | null
+          created_at?: string | null
+          deepseek_cost: number
+          deepseek_response_full: string
+          deepseek_tokens_input: number
+          deepseek_tokens_output: number
+          generation_duration_ms?: number | null
+          id?: string
+          prompt_text_used: string
+          prompt_version_id?: string | null
+          user_id: string
+        }
+        Update: {
+          brief_id?: string | null
+          created_at?: string | null
+          deepseek_cost?: number
+          deepseek_response_full?: string
+          deepseek_tokens_input?: number
+          deepseek_tokens_output?: number
+          generation_duration_ms?: number | null
+          id?: string
+          prompt_text_used?: string
+          prompt_version_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brief_generation_logs_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "briefs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       briefs: {
         Row: {
@@ -384,6 +464,63 @@ export type Database = {
         }
         Relationships: []
       }
+      system_prompts: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          prompt_text: string
+          updated_at: string | null
+          variables: Json | null
+          version: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          prompt_text: string
+          updated_at?: string | null
+          variables?: Json | null
+          version: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          prompt_text?: string
+          updated_at?: string | null
+          variables?: Json | null
+          version?: number
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_deliveries: {
         Row: {
           brief_id: string
@@ -457,8 +594,16 @@ export type Database = {
         }
         Returns: string
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "user"
       business_model: "saas" | "ecommerce" | "services" | "other"
       email_status: "pending" | "sent" | "failed"
       tone_type: "sobre" | "coach" | "energique" | "no-bs"
@@ -589,6 +734,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "user"],
       business_model: ["saas", "ecommerce", "services", "other"],
       email_status: ["pending", "sent", "failed"],
       tone_type: ["sobre", "coach", "energique", "no-bs"],
