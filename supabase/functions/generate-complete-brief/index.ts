@@ -235,7 +235,10 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
     });
 
     if (!elevenLabsResponse.ok) {
-      throw new Error("Failed to generate voice sample");
+      const errorText = await elevenLabsResponse.text();
+      console.error("ElevenLabs error response:", errorText);
+      addLog("error", "❌", "Erreur ElevenLabs", `Status ${elevenLabsResponse.status}: ${errorText}`);
+      throw new Error(`Failed to generate voice sample: ${errorText}`);
     }
 
     // Convertir l'audio en base64 par chunks pour éviter stack overflow

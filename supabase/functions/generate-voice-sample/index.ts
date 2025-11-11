@@ -49,7 +49,9 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("ElevenLabs TTS error:", response.status, errorText);
-      throw new Error(`ElevenLabs TTS error: ${response.status}`);
+      console.error("Voice ID used:", voice_id);
+      console.error("Text length:", sampleText.length);
+      throw new Error(`ElevenLabs TTS error (${response.status}): ${errorText}`);
     }
 
     console.log("Voice sample generated successfully");
