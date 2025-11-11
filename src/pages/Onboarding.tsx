@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useElevenLabsVoices } from "@/hooks/useElevenLabsVoices";
 import { VoicePreviewCard } from "@/components/VoicePreviewCard";
 import { AIPreferencesStep } from "@/components/onboarding/AIPreferencesStep";
+import { PhoneInput } from "@/components/PhoneInput";
+import "@/components/PhoneInput.css";
 
 // Avatar images
 import leoAvatar from "@/assets/avatars/leo.png";
@@ -473,11 +475,13 @@ const Onboarding = () => {
         }
       });
 
-      // Update UI with estimated progress
-      setTimeout(() => setGenerationStep("🤖 Analyse intelligente de vos KPIs..."), 3000);
-      setTimeout(() => setGenerationStep("🎙️ Génération de l'audio..."), 25000);
-      setTimeout(() => setGenerationStep("☁️ Upload de l'audio..."), 47000);
-      setTimeout(() => setGenerationStep("💾 Finalisation du brief..."), 49000);
+      // Update UI with fun progress messages
+      setTimeout(() => setGenerationStep("🧠 L'IA lit tes données comme un pro..."), 3000);
+      setTimeout(() => setGenerationStep("🔍 Recherche des insights cachés..."), 10000);
+      setTimeout(() => setGenerationStep("📝 Rédaction de ton brief personnalisé..."), 18000);
+      setTimeout(() => setGenerationStep("🎙️ Conversion en audio (magie vocale)..."), 26000);
+      setTimeout(() => setGenerationStep("✨ Ajout de la touche finale..."), 40000);
+      setTimeout(() => setGenerationStep("☁️ Préparation de l'envoi..."), 50000);
       
       const { data: briefData, error: briefError } = await generationPromise;
 
@@ -1068,14 +1072,14 @@ const Onboarding = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="whatsappPhone">Numéro WhatsApp</Label>
-                      <Input
-                        id="whatsappPhone"
-                        placeholder="+33612345678"
+                      <PhoneInput
                         value={whatsappPhone}
-                        onChange={(e) => setWhatsappPhone(e.target.value)}
+                        onChange={setWhatsappPhone}
+                        placeholder="Entrez votre numéro"
+                        className="w-full"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Format : indicatif + numéro (ex: +33612345678)
+                        Sélectionnez votre pays et entrez votre numéro
                       </p>
                     </div>
                     <div className="flex gap-2">

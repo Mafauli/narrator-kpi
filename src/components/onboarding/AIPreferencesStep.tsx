@@ -25,6 +25,13 @@ interface AIPreferencesStepProps {
 export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesStepProps) => {
   const [loading, setLoading] = useState(true);
   const [refining, setRefining] = useState(false);
+  const [refiningMessages] = useState([
+    "🤔 Je réfléchis à ta réponse...",
+    "💡 J'ajuste mes recommandations...",
+    "🎯 Je peaufine ton contexte...",
+    "✨ Presque terminé, patience !"
+  ]);
+  const [currentRefiningMessage, setCurrentRefiningMessage] = useState(0);
   const [phase, setPhase] = useState<'infer' | 'chat' | 'refined'>('infer');
   
   // AI Response data
@@ -209,6 +216,13 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
     }
 
     setRefining(true);
+    setCurrentRefiningMessage(0);
+    
+    // Rotate through fun messages
+    const messageInterval = setInterval(() => {
+      setCurrentRefiningMessage(prev => (prev + 1) % refiningMessages.length);
+    }, 8000);
+    
     try {
       console.log('[AIPreferencesStep] Calling refine phase');
 
@@ -217,7 +231,13 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
           phase: 'refine',
           lang: 'fr',
           tz: 'Europe/Paris',
-          prior_inference: priorInference,
+          prior_inference: {
+            // Only send essential context, not full samples
+            sector_guess: priorInference?.sector_guess,
+            suggested_kpis: priorInference?.suggested_kpis,
+            pitch_message: priorInference?.pitch_message,
+            context: priorInference?.context
+          },
           user_reply_raw: reply
         }
       });
@@ -244,6 +264,7 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
       console.error('[AIPreferencesStep] Error in refine phase:', error);
       toast.error("Erreur lors de l'affinement : " + (error.message || "Erreur inconnue"));
     } finally {
+      clearInterval(messageInterval);
       setRefining(false);
     }
   };
@@ -437,7 +458,7 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
               {refining ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Affinage en cours...
+                  {refiningMessages[currentRefiningMessage]}
                 </>
               ) : (
                 <>
