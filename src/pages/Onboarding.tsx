@@ -9,12 +9,13 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Play, Database, Settings, Sparkles, HelpCircle, ChevronDown, User, Volume2, RefreshCw } from "lucide-react";
+import { Play, Database, Settings, Sparkles, HelpCircle, ChevronDown, User, Volume2, RefreshCw, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useElevenLabsVoices } from "@/hooks/useElevenLabsVoices";
 import { VoicePreviewCard } from "@/components/VoicePreviewCard";
 import { AIPreferencesStep } from "@/components/onboarding/AIPreferencesStep";
+import { SchedulingStep } from "@/components/onboarding/SchedulingStep";
 import { PhoneInput } from "@/components/PhoneInput";
 import "@/components/PhoneInput.css";
 
@@ -77,7 +78,7 @@ const Onboarding = () => {
     const stepParam = searchParams.get('step');
     if (stepParam) {
       const stepNumber = parseInt(stepParam);
-      if (stepNumber >= 1 && stepNumber <= 5) {
+      if (stepNumber >= 1 && stepNumber <= 6) {
         setStep(stepNumber);
         // If going to step 2 or later, ensure Airtable is connected
         if (stepNumber >= 2) {
@@ -324,6 +325,13 @@ const Onboarding = () => {
   const [generatingBrief, setGeneratingBrief] = useState(false);
   const [generationStep, setGenerationStep] = useState("");
 
+  // Step 6: Scheduling
+  const [scheduleFrequency, setScheduleFrequency] = useState<'weekly' | 'monthly' | 'daily'>('weekly');
+  const [scheduleDay, setScheduleDay] = useState(1); // Lundi par défaut pour weekly, 1 pour monthly
+  const [scheduleHour, setScheduleHour] = useState(8);
+  const [scheduleMinute, setScheduleMinute] = useState(0);
+  const [scheduleTimezone, setScheduleTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
+
   // ElevenLabs voices
   const { voices, loading: voicesLoading, syncing, syncVoices } = useElevenLabsVoices();
 
@@ -427,76 +435,96 @@ const Onboarding = () => {
   };
 
   const handleGenerateAndSendBrief = async () => {
-    // Validation
-    const cleanFirstName = firstName.trim();
-    const cleanPhone = whatsappPhone.trim().replace(/\s/g, '');
-    
-    if (!cleanFirstName || cleanFirstName.length > 50) {
-      toast.error("Prénom invalide (max 50 caractères)");
+    if (!firstName.trim()) {
+      toast.error("Entre ton prénom");
       return;
     }
-    
-    if (!cleanPhone || !/^\+?\d{8,15}$/.test(cleanPhone)) {
-      toast.error("Numéro WhatsApp invalide (format: +33659387912)");
+    if (!whatsappPhone || whatsappPhone.length < 8) {
+      toast.error("Entre un numéro WhatsApp valide");
       return;
     }
 
     setGeneratingBrief(true);
+
+    const funMessages = [
+      "🧠 L'IA lit tes données comme un pro...",
+      "🔍 Recherche des insights cachés dans tes chiffres...",
+      "💡 Détection des tendances qui comptent vraiment...",
+      "🎨 Création d'un brief sur-mesure pour toi...",
+      "🗣️ Transformation en audio avec ta voix préférée...",
+      "📲 Préparation de l'envoi sur WhatsApp..."
+    ];
+
+    let currentMessageIndex = 0;
+    setGenerationStep(funMessages[0]);
+
+    const messageInterval = setInterval(() => {
+      currentMessageIndex = (currentMessageIndex + 1) % funMessages.length;
+      setGenerationStep(funMessages[currentMessageIndex]);
+    }, 8000);
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non connecté");
 
-      // Save first name and phone to preferences
+      // Sauvegarder first_name et whatsapp_phone dans preferences
       await supabase.from("preferences").update({
-        first_name: cleanFirstName,
-        whatsapp_phone: cleanPhone
+        first_name: firstName,
+        whatsapp_phone: whatsappPhone
       }).eq("user_id", user.id);
 
-      // Fetch Airtable data stats first
       setGenerationStep("📊 Récupération de vos données Airtable...");
-      
-      const { data: airtableData, error: airtableError } = await supabase.functions.invoke('fetch-airtable-data', {
-        body: {}
-      });
 
-      if (airtableError) throw airtableError;
+      // Calculer les statistiques des vues
+      const { data: views } = await supabase
+        .from('airtable_views')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('enabled', true);
 
-      const totalRecords = airtableData?.total_records || 0;
-      const viewsCount = airtableData?.views?.length || 0;
-      const estimatedCells = totalRecords * 8; // Estimation moyenne de 8 colonnes par vue
+      if (!views || views.length === 0) {
+        throw new Error("Aucune vue Airtable sélectionnée");
+      }
 
-      setGenerationStep(`📊 Analyse de ${totalRecords} lignes depuis ${viewsCount} vue${viewsCount > 1 ? 's' : ''} (≈${estimatedCells} cellules)...`);
-      
-      // Start the actual generation
-      const generationPromise = supabase.functions.invoke('generate-complete-brief', {
-        body: { 
-          user_id: user.id,
-          include_first_name: firstName 
-        }
-      });
+      const totalLines = views.reduce((sum, view) => {
+        const schemaData = view.schema_json as any;
+        const rowCount = schemaData?.fields?.[0]?.sampleData?.length || 0;
+        return sum + rowCount;
+      }, 0);
 
-      // Update UI with fun progress messages
-      setTimeout(() => setGenerationStep("🧠 L'IA lit tes données comme un pro..."), 3000);
-      setTimeout(() => setGenerationStep("🔍 Recherche des insights cachés..."), 10000);
-      setTimeout(() => setGenerationStep("📝 Rédaction de ton brief personnalisé..."), 18000);
-      setTimeout(() => setGenerationStep("🎙️ Conversion en audio (magie vocale)..."), 26000);
-      setTimeout(() => setGenerationStep("✨ Ajout de la touche finale..."), 40000);
-      setTimeout(() => setGenerationStep("☁️ Préparation de l'envoi..."), 50000);
-      
-      const { data: briefData, error: briefError } = await generationPromise;
+      const totalCells = views.reduce((sum, view) => {
+        const schemaData = view.schema_json as any;
+        const fieldCount = schemaData?.fields?.length || 0;
+        const rowCount = schemaData?.fields?.[0]?.sampleData?.length || 0;
+        return sum + (fieldCount * rowCount);
+      }, 0);
+
+      setGenerationStep(`📊 ${totalLines} lignes détectées dans ${views.length} vue${views.length > 1 ? 's' : ''} (≈${totalCells} cellules)`);
+
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      setGenerationStep("🤖 Analyse de vos données (~22s)...");
+
+      const { data: briefData, error: briefError } = await supabase.functions.invoke(
+        'generate-complete-brief-stream',
+        { body: { user_id: user.id } }
+      );
 
       if (briefError) throw briefError;
-      if (!briefData?.brief_id) throw new Error("Brief ID manquant");
+      if (!briefData?.brief_id) throw new Error("Erreur lors de la génération du brief");
 
-      // Step 2: Send via WhatsApp
-      setGenerationStep("📱 Envoi de ton brief sur WhatsApp...");
-      
-      const { error: sendError } = await supabase.functions.invoke('send-whatsapp-brief', {
-        body: {
-          brief_id: briefData.brief_id,
-          phone_number: cleanPhone
+      clearInterval(messageInterval);
+      setGenerationStep("📲 Envoi de ton brief sur WhatsApp...");
+
+      const { error: sendError } = await supabase.functions.invoke(
+        'send-whatsapp-brief',
+        { 
+          body: { 
+            brief_id: briefData.brief_id,
+            phone_number: whatsappPhone
+          }
         }
-      });
+      );
 
       if (sendError) throw sendError;
 
@@ -504,14 +532,63 @@ const Onboarding = () => {
       toast.success("🎉 Ton premier brief est en route sur WhatsApp !");
       
       setTimeout(() => {
-        navigate("/app");
+        setStep(6);
+        setShowTestBriefForm(false);
+        setGeneratingBrief(false);
+        setGenerationStep("");
       }, 2000);
     } catch (error: any) {
       console.error("Error generating brief:", error);
       toast.error(error.message || "Erreur lors de la génération du brief");
       setGenerationStep("");
+      clearInterval(messageInterval);
     } finally {
       setGeneratingBrief(false);
+    }
+  };
+
+  const handleActivateSchedule = async () => {
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Non connecté");
+
+      // Calculer next_send_at via la fonction database
+      const { data: nextSendData, error: calcError } = await supabase.rpc('calculate_next_send_at', {
+        schedule_type: scheduleFrequency,
+        day_of_week: scheduleFrequency === 'weekly' ? scheduleDay : null,
+        day_of_month: scheduleFrequency === 'monthly' ? scheduleDay : null,
+        hour: scheduleHour,
+        minute: scheduleMinute,
+        timezone: scheduleTimezone,
+        from_timestamp: new Date().toISOString()
+      });
+
+      if (calcError) throw calcError;
+
+      // Insérer le schedule dans scheduled_briefs
+      const { error: insertError } = await supabase.from('scheduled_briefs').insert({
+        user_id: user.id,
+        schedule_type: scheduleFrequency,
+        day_of_week: scheduleFrequency === 'weekly' ? scheduleDay : null,
+        day_of_month: scheduleFrequency === 'monthly' ? scheduleDay : null,
+        hour: scheduleHour,
+        minute: scheduleMinute,
+        timezone: scheduleTimezone,
+        phone_number: whatsappPhone,
+        is_active: true,
+        next_send_at: nextSendData
+      });
+
+      if (insertError) throw insertError;
+
+      toast.success("🎉 Envois automatiques activés !");
+      navigate("/app");
+    } catch (error: any) {
+      console.error("Error activating schedule:", error);
+      toast.error(error.message || "Erreur lors de l'activation");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -545,11 +622,11 @@ const Onboarding = () => {
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center gap-4 mb-8">
-      {[1, 2, 3, 4, 5].map((i) => (
+      {[1, 2, 3, 4, 5, 6].map((i) => (
         <div key={i} className="flex items-center gap-2">
           <button
             onClick={() => setStep(i)}
-            disabled={i > step && step < 5}
+            disabled={i > step && step < 6}
             className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all ${
               step >= i 
                 ? "bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer" 
@@ -559,7 +636,7 @@ const Onboarding = () => {
           >
             {i}
           </button>
-          {i < 5 && <div className={`w-12 h-1 ${step > i ? "bg-accent" : "bg-muted"}`} />}
+          {i < 6 && <div className={`w-12 h-1 ${step > i ? "bg-accent" : "bg-muted"}`} />}
         </div>
       ))}
     </div>
@@ -582,7 +659,7 @@ const Onboarding = () => {
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">Configuration initiale</h1>
             <p className="text-muted-foreground">
-              4 étapes rapides pour recevoir ton premier brief
+              {step <= 5 ? "5 étapes rapides pour recevoir ton premier brief" : "Configure tes envois automatiques"}
             </p>
           </div>
 
@@ -1113,6 +1190,53 @@ const Onboarding = () => {
                     </div>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 6: Scheduling */}
+          {step === 6 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2 text-accent mb-2">
+                  <Calendar className="h-5 w-5" />
+                  <CardTitle>Planifie tes envois automatiques</CardTitle>
+                </div>
+                <CardDescription>
+                  Configure quand tu veux recevoir tes briefs hebdomadaires ou mensuels
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <SchedulingStep
+                  scheduleFrequency={scheduleFrequency}
+                  setScheduleFrequency={setScheduleFrequency}
+                  scheduleDay={scheduleDay}
+                  setScheduleDay={setScheduleDay}
+                  scheduleHour={scheduleHour}
+                  setScheduleHour={setScheduleHour}
+                  scheduleMinute={scheduleMinute}
+                  setScheduleMinute={setScheduleMinute}
+                  timezone={scheduleTimezone}
+                  setTimezone={setScheduleTimezone}
+                  whatsappPhone={whatsappPhone}
+                />
+
+                <div className="flex gap-4 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setStep(5)}
+                    className="flex-1"
+                  >
+                    Retour
+                  </Button>
+                  <Button
+                    onClick={handleActivateSchedule}
+                    disabled={isLoading}
+                    className="flex-1 bg-accent hover:bg-accent/90"
+                  >
+                    {isLoading ? "Activation..." : "Activer les envois automatiques"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
