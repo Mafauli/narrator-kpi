@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
+import { createLogger } from "../_shared/logger.ts";
+
+const logger = createLogger("generate-complete-brief-stream");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -63,7 +66,7 @@ serve(async (req) => {
         if (isServiceRole && userIdHeader) {
           // System call from CRON
           userId = userIdHeader;
-          console.log("System call detected for user:", userId);
+          logger.info("System call detected", { user_id: userId });
         } else {
           // Regular user call
           const supabase = createClient(
@@ -266,10 +269,10 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
           return;
         }
 
-        console.log("=== TEXTE ENVOYÉ À ELEVENLABS ===");
-        console.log(narrativeText);
-        console.log("=== FIN TEXTE ===");
-        console.log("Voice ID:", voiceId);
+        logger.debug("Sending text to ElevenLabs", { 
+          text_length: narrativeText.length,
+          voice_id: voiceId 
+        });
 
         const elevenLabsResponse = await fetch(
           `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
@@ -294,7 +297,10 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
 
         if (!elevenLabsResponse.ok) {
           const errorText = await elevenLabsResponse.text();
-          console.error("ElevenLabs API error:", elevenLabsResponse.status, errorText);
+          logger.error("ElevenLabs API error", { 
+            status: elevenLabsResponse.status,
+            error: errorText.substring(0, 200)
+          });
           await sendLog({ 
             timestamp: Date.now(), 
             type: "error", 
@@ -302,7 +308,7 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
             message: `ElevenLabs erreur ${elevenLabsResponse.status}`,
             details: errorText.substring(0, 200)
           });
-          sendError(`Failed to generate voice sample: ${elevenLabsResponse.status} - ${errorText}`);
+          sendError("Failed to generate audio");
           return;
         }
 
@@ -326,8 +332,8 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
           });
 
         if (uploadError) {
-          console.error("Storage upload error:", uploadError);
-          sendError(`Erreur lors de l'upload audio: ${uploadError.message}`);
+          logger.error("Storage upload error", { error: uploadError.message });
+          sendError("Failed to upload audio");
           return;
         }
 
@@ -394,7 +400,9 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         sendDone();
 
       } catch (error) {
-        console.error("Error in generate-complete-brief-stream:", error);
+        logger.error("Error in generate-complete-brief-stream", { 
+          error: error instanceof Error ? error.message : "Unknown error" 
+        });
         sendLog({ 
           timestamp: Date.now(), 
           type: "error", 
@@ -402,7 +410,7 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
           message: "Erreur", 
           details: error instanceof Error ? error.message : "Unknown error" 
         });
-        sendError(error instanceof Error ? error.message : "Unknown error");
+        sendError("Internal error");
       }
     },
   });

@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
+import { createLogger } from "../_shared/logger.ts";
+
+const logger = createLogger("send-whatsapp-brief");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +34,7 @@ serve(async (req) => {
     if (isServiceRole && userIdHeader) {
       // System call from CRON
       userId = userIdHeader;
-      console.log("System call detected for user:", userId);
+      logger.info("System call detected", { user_id: userId });
     } else {
       // Regular user call
       const supabase = createClient(
@@ -74,7 +77,11 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Sending brief ${brief_id} to ${phone_number} for user ${userId}`);
+    logger.info("Sending brief", { 
+      brief_id, 
+      phone_number, 
+      user_id: userId 
+    });
 
     // Rate limiting check: max 10 sends per hour
     const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
@@ -100,17 +107,17 @@ serve(async (req) => {
       .maybeSingle();
 
     if (briefError) {
-      console.error("Database error fetching brief:", briefError);
+      logger.error("Database error fetching brief", { error: briefError.message });
       return new Response(
-        JSON.stringify({ error: "Database error", details: briefError.message }),
+        JSON.stringify({ error: "Database error" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!brief) {
-      console.error(`Brief ${brief_id} not found for user ${userId}`);
+      logger.error("Brief not found", { brief_id, user_id: userId });
       return new Response(
-        JSON.stringify({ error: "Brief not found or does not belong to user" }),
+        JSON.stringify({ error: "Brief not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -130,8 +137,7 @@ serve(async (req) => {
       throw new Error("WhatsApp credentials not configured");
     }
 
-    console.log("Sending WhatsApp message...");
-    console.log("Audio URL:", brief.audio_url);
+    logger.info("Sending WhatsApp message", { audio_url: brief.audio_url });
 
     // Send message via WhatsApp Business API
     const whatsappResponse = await fetch(
@@ -155,10 +161,15 @@ serve(async (req) => {
     );
 
     const whatsappData = await whatsappResponse.json();
-    console.log("WhatsApp API response:", whatsappData);
+    logger.info("WhatsApp API response received", { 
+      status: whatsappResponse.status 
+    });
 
     if (!whatsappResponse.ok) {
-      console.error("WhatsApp API error:", whatsappData);
+      logger.error("WhatsApp API error", { 
+        status: whatsappResponse.status,
+        error: whatsappData.error?.message 
+      });
       
       // Create failed delivery record
       await supabase.from("whatsapp_deliveries").insert({
@@ -198,11 +209,16 @@ serve(async (req) => {
       .single();
 
     if (deliveryError) {
-      console.error("Failed to create delivery record:", deliveryError);
+      logger.warn("Failed to create delivery record", { 
+        error: deliveryError.message 
+      });
       // Don't fail the request, message was sent successfully
     }
 
-    console.log("Brief sent successfully:", messageId);
+    logger.info("Brief sent successfully", { 
+      message_id: messageId, 
+      brief_id 
+    });
 
     return new Response(
       JSON.stringify({
@@ -219,11 +235,12 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Error in send-whatsapp-brief:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    logger.error("Error in send-whatsapp-brief", { 
+      error: error instanceof Error ? error.message : "Unknown error" 
+    });
     
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: "Failed to send brief" }),
       { 
         status: 500, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 

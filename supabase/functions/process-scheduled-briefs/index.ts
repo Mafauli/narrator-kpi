@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
+import { createLogger } from "../_shared/logger.ts";
+
+const logger = createLogger("process-scheduled-briefs");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +19,7 @@ serve(async (req) => {
   const authHeader = req.headers.get("Authorization");
   
   if (!cronSecret) {
-    console.error("❌ CRON_SECRET not configured");
+    logger.error("CRON_SECRET not configured");
     return new Response(
       JSON.stringify({ error: "Server configuration error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -25,7 +28,7 @@ serve(async (req) => {
 
   const providedToken = authHeader?.replace("Bearer ", "");
   if (providedToken !== cronSecret) {
-    console.error("❌ Unauthorized CRON access attempt");
+    logger.error("Unauthorized CRON access attempt", { providedToken: '[REDACTED]' });
     return new Response(
       JSON.stringify({ error: "Unauthorized" }),
       { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -38,7 +41,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    console.log("🔄 Starting scheduled briefs processing...");
+    logger.info("Starting scheduled briefs processing");
 
     // Fetch all active schedules where next_send_at <= NOW()
     const { data: schedules, error: scheduleError } = await supabase
@@ -49,22 +52,22 @@ serve(async (req) => {
       .order("next_send_at", { ascending: true });
 
     if (scheduleError) {
-      console.error("Error fetching schedules:", scheduleError);
+      logger.error("Error fetching schedules", { error: scheduleError.message });
       return new Response(
-        JSON.stringify({ error: scheduleError.message }),
+        JSON.stringify({ error: "Failed to fetch schedules" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!schedules || schedules.length === 0) {
-      console.log("✅ No schedules to process");
+      logger.info("No schedules to process");
       return new Response(
         JSON.stringify({ message: "No schedules to process", processed: 0 }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`📋 Found ${schedules.length} schedules to process`);
+    logger.info("Schedules found", { count: schedules.length });
 
     const results = {
       total: schedules.length,
@@ -76,10 +79,13 @@ serve(async (req) => {
     // Process each schedule
     for (const schedule of schedules) {
       try {
-        console.log(`\n🔄 Processing schedule ${schedule.id} for user ${schedule.user_id}`);
+        logger.info("Processing schedule", { 
+          schedule_id: schedule.id, 
+          user_id: schedule.user_id 
+        });
 
         // Step 1: Generate brief using service role (bypasses auth for system tasks)
-        console.log("  📝 Generating brief...");
+        logger.info("Generating brief", { schedule_id: schedule.id });
         
         // Create a Supabase client with user context for the brief generation
         const userSupabase = createClient(
@@ -146,11 +152,14 @@ serve(async (req) => {
           throw new Error("Brief generation succeeded but no brief_id returned");
         }
 
-        console.log(`  ✅ Brief generated: ${briefId}`);
+        logger.info("Brief generated successfully", { brief_id: briefId });
 
         // Step 2: Send via WhatsApp
         if (schedule.delivery_method === "whatsapp" && schedule.phone_number) {
-          console.log("  📱 Sending via WhatsApp...");
+          logger.info("Sending brief via WhatsApp", { 
+            brief_id: briefId, 
+            phone: schedule.phone_number 
+          });
           
           const whatsappResponse = await fetch(
             `${supabaseUrl}/functions/v1/send-whatsapp-brief`,
@@ -173,11 +182,11 @@ serve(async (req) => {
             throw new Error(`WhatsApp send failed: ${errorData.error}`);
           }
 
-          console.log("  ✅ WhatsApp sent successfully");
+          logger.info("Brief sent via WhatsApp successfully", { brief_id: briefId });
         }
 
         // Step 3: Update schedule
-        console.log("  🔄 Updating schedule...");
+        logger.info("Updating schedule", { schedule_id: schedule.id });
         const now = new Date();
         
         // Calculate next_send_at using the database function
@@ -191,16 +200,25 @@ serve(async (req) => {
           .single();
 
         if (updateError) {
-          console.error("  ⚠️ Failed to update schedule:", updateError);
+          logger.warn("Failed to update schedule", { 
+            schedule_id: schedule.id, 
+            error: updateError.message 
+          });
         } else {
-          console.log(`  ✅ Next send scheduled for: ${updatedSchedule.next_send_at}`);
+          logger.info("Schedule updated", { 
+            schedule_id: schedule.id, 
+            next_send_at: updatedSchedule.next_send_at 
+          });
         }
 
         results.success++;
-        console.log(`✅ Schedule ${schedule.id} processed successfully\n`);
+        logger.info("Schedule processed successfully", { schedule_id: schedule.id });
 
       } catch (error) {
-        console.error(`❌ Failed to process schedule ${schedule.id}:`, error);
+        logger.error("Failed to process schedule", { 
+          schedule_id: schedule.id, 
+          error: error instanceof Error ? error.message : "Unknown error" 
+        });
         results.failed++;
         results.errors.push({
           schedule_id: schedule.id,
@@ -221,7 +239,10 @@ serve(async (req) => {
       }
     }
 
-    console.log(`\n📊 Processing complete: ${results.success} success, ${results.failed} failed`);
+    logger.info("Processing complete", { 
+      success: results.success, 
+      failed: results.failed 
+    });
 
     return new Response(
       JSON.stringify({
@@ -235,11 +256,11 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("❌ Fatal error in process-scheduled-briefs:", error);
+    logger.error("Fatal error in process-scheduled-briefs", { 
+      error: error instanceof Error ? error.message : "Unknown error" 
+    });
     return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

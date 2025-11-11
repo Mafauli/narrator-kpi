@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createLogger } from "../_shared/logger.ts";
+
+const logger = createLogger("whatsapp-webhook");
 
 const VERIFY_TOKEN = Deno.env.get("WEBHOOK_VERIFY_TOKEN");
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -24,18 +27,25 @@ serve(async (req) => {
     const token = url.searchParams.get('hub.verify_token');
     const challenge = url.searchParams.get('hub.challenge');
 
-    console.log('Webhook verification request:', { mode, token: token ? 'present' : 'missing', challenge: challenge ? 'present' : 'missing' });
+    logger.info('Webhook verification request', { 
+      mode, 
+      has_token: !!token, 
+      has_challenge: !!challenge 
+    });
 
     // Check if mode and token are valid
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-      console.log('Webhook verified successfully');
+      logger.info('Webhook verified successfully');
       // Respond with the challenge token from the request
       return new Response(challenge, {
         status: 200,
         headers: { 'Content-Type': 'text/plain' },
       });
     } else {
-      console.error('Webhook verification failed:', { mode, tokenMatch: token === VERIFY_TOKEN });
+      logger.error('Webhook verification failed', { 
+        mode, 
+        token_match: token === VERIFY_TOKEN 
+      });
       return new Response('Forbidden', { status: 403 });
     }
   }
@@ -44,7 +54,9 @@ serve(async (req) => {
   if (req.method === 'POST') {
     try {
       const body = await req.json();
-      console.log('Received WhatsApp webhook event:', JSON.stringify(body, null, 2));
+      logger.info('Received WhatsApp webhook event', { 
+        entries_count: body.entry?.length || 0 
+      });
 
       // Process status updates
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -59,7 +71,10 @@ serve(async (req) => {
               const statusType = status.status; // sent, delivered, read, failed
               const timestamp = new Date(parseInt(status.timestamp) * 1000).toISOString();
               
-              console.log(`Processing status update: ${statusType} for message ${messageId}`);
+              logger.info('Processing status update', { 
+                status: statusType, 
+                message_id: messageId 
+              });
               
               // Update whatsapp_deliveries table
               const updateData: any = {
@@ -90,9 +105,15 @@ serve(async (req) => {
                 .eq('message_id', messageId);
               
               if (error) {
-                console.error(`Error updating delivery status: ${error.message}`);
+                logger.error('Error updating delivery status', { 
+                  message_id: messageId, 
+                  error: error.message 
+                });
               } else {
-                console.log(`Successfully updated status to ${statusType} for message ${messageId}`);
+                logger.info('Status updated successfully', { 
+                  status: statusType, 
+                  message_id: messageId 
+                });
               }
             }
           }
@@ -104,7 +125,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } catch (error) {
-      console.error('Error processing webhook:', error);
+      logger.error('Error processing webhook', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
       return new Response(JSON.stringify({ error: 'Internal server error' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
