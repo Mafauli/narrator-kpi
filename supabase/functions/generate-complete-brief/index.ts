@@ -279,7 +279,7 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
         },
         email_status: "pending",
       }, {
-        onConflict: "user_id,week_start",
+        onConflict: 'user_id,week_start'
       })
       .select()
       .single();

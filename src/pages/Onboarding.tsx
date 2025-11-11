@@ -416,15 +416,23 @@ const Onboarding = () => {
         whatsapp_phone: whatsappPhone
       }).eq("user_id", user.id);
 
-      // Step 1: Generate complete brief (text + audio)
+      // Simulate real progress steps based on actual timing
       setGenerationStep("📊 Récupération de vos données Airtable...");
       
-      const { data: briefData, error: briefError } = await supabase.functions.invoke('generate-complete-brief', {
+      // Start the actual generation
+      const generationPromise = supabase.functions.invoke('generate-complete-brief', {
         body: { 
           user_id: user.id,
           include_first_name: firstName 
         }
       });
+
+      // Update UI with estimated progress
+      setTimeout(() => setGenerationStep("🤖 Analyse des données avec DeepSeek..."), 3000);
+      setTimeout(() => setGenerationStep("🎙️ Génération audio avec ElevenLabs..."), 25000);
+      setTimeout(() => setGenerationStep("💾 Finalisation du brief..."), 47000);
+      
+      const { data: briefData, error: briefError } = await generationPromise;
 
       if (briefError) throw briefError;
       if (!briefData?.brief_id) throw new Error("Brief ID manquant");
