@@ -132,11 +132,15 @@ export default function Dashboard() {
             <p className="text-muted-foreground">Tes briefs KPI automatisés</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/app/onboarding')}>
+              <Settings className="w-4 h-4 mr-2" />
+              Configuration
+            </Button>
             <Button variant="outline" onClick={() => navigate('/app/test-brief-generation')}>
               Test Brief
             </Button>
             <Button variant="outline" onClick={() => navigate('/app/profile')}>
-              <Settings className="w-4 h-4" />
+              Profil
             </Button>
             <Button variant="outline" onClick={signOut}>
               <LogOut className="w-4 h-4" />
