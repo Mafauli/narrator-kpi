@@ -27,9 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Pencil, Trash2, Plus, Upload, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Plus, Upload, Loader2, RefreshCw, Volume2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useElevenLabsVoices } from "@/hooks/useElevenLabsVoices";
 
 interface Avatar {
   id: string;
@@ -48,15 +49,18 @@ interface Avatar {
 interface ElevenLabsVoice {
   voice_id: string;
   name: string;
+  preview_url: string | null;
+  gender: string | null;
+  description: string | null;
 }
 
 export const AvatarsManager = () => {
   const [avatars, setAvatars] = useState<Avatar[]>([]);
-  const [voices, setVoices] = useState<ElevenLabsVoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [editDialog, setEditDialog] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
   const [uploading, setUploading] = useState(false);
+  const { voices, syncing, syncVoices } = useElevenLabsVoices();
 
   const fetchAvatars = async () => {
     try {
@@ -76,23 +80,8 @@ export const AvatarsManager = () => {
     }
   };
 
-  const fetchVoices = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('elevenlabs_voices')
-        .select('voice_id, name')
-        .order('name');
-
-      if (error) throw error;
-      setVoices(data || []);
-    } catch (error) {
-      console.error('Error fetching voices:', error);
-    }
-  };
-
   useEffect(() => {
     fetchAvatars();
-    fetchVoices();
   }, []);
 
   const handleEdit = (avatar: Avatar) => {
@@ -167,7 +156,28 @@ export const AvatarsManager = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Gestion des Avatars</CardTitle>
+            <Button 
+              onClick={syncVoices} 
+              disabled={syncing}
+              variant="outline"
+              size="sm"
+            >
+              {syncing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Synchronisation...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Synchroniser les voix ElevenLabs
+                </>
+              )}
+            </Button>
           </div>
+          <p className="text-sm text-muted-foreground mt-2">
+            {voices.length} voix françaises disponibles
+          </p>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -332,14 +342,36 @@ export const AvatarsManager = () => {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px]">
                       {voices.map((voice) => (
                         <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                          {voice.name}
+                          <div className="flex items-center justify-between w-full gap-2">
+                            <span>{voice.name}</span>
+                            {voice.gender && (
+                              <span className="text-xs text-muted-foreground">
+                                ({voice.gender})
+                              </span>
+                            )}
+                            {voice.preview_url && (
+                              <Volume2 
+                                className="h-3 w-3 text-primary cursor-pointer" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const audio = new Audio(voice.preview_url!);
+                                  audio.play();
+                                }}
+                              />
+                            )}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedAvatar.voice_reco && voices.find(v => v.voice_id === selectedAvatar.voice_reco)?.description && (
+                    <p className="text-xs text-muted-foreground">
+                      {voices.find(v => v.voice_id === selectedAvatar.voice_reco)?.description}
+                    </p>
+                  )}
                 </div>
               </div>
 

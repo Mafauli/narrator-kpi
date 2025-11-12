@@ -38,12 +38,20 @@ serve(async (req) => {
     const data = await response.json();
     logger.info("Fetched voices from ElevenLabs", { voicesCount: data.voices.length });
     
-    // Filter for French voices only
-    const frenchVoices = data.voices.filter((v: any) => 
-      v.labels?.language === "fr" || v.labels?.language === "french"
-    );
+    // Filter for French voices - be more inclusive to get all French voices
+    const frenchVoices = data.voices.filter((v: any) => {
+      const language = v.labels?.language?.toLowerCase() || "";
+      const accent = v.labels?.accent?.toLowerCase() || "";
+      const name = v.name?.toLowerCase() || "";
+      
+      // Include voices with French language/accent or popular French voice names
+      return language.includes("fr") || 
+             language.includes("french") || 
+             accent.includes("french") ||
+             ["natasha", "francesca", "iris", "dorothée", "tchad", "aaron"].some(n => name.includes(n));
+    });
 
-    logger.info("French voices filtered", { frenchVoicesCount: frenchVoices.length });
+    logger.info("French voices filtered", { frenchVoicesCount: frenchVoices.length, totalVoices: data.voices.length });
 
     // Initialize Supabase with service role key
     const supabaseClient = createClient(
