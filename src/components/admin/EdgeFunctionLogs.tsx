@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,14 +47,14 @@ export const EdgeFunctionLogs = ({ functionName, title }: EdgeFunctionLogsProps)
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
   const [viewDialog, setViewDialog] = useState(false);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
       
       const { data, error } = await supabase.functions.invoke('get-edge-logs', {
         body: { 
           function_name: functionName,
-          search: searchTerm || "",
+          search: "",
           limit: 100
         }
       });
@@ -80,11 +80,11 @@ export const EdgeFunctionLogs = ({ functionName, title }: EdgeFunctionLogsProps)
     } finally {
       setLoading(false);
     }
-  };
+  }, [functionName]);
 
   useEffect(() => {
     fetchLogs();
-  }, [functionName]);
+  }, [fetchLogs]);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -94,7 +94,7 @@ export const EdgeFunctionLogs = ({ functionName, title }: EdgeFunctionLogsProps)
     }, 10000); // Refresh every 10 seconds
 
     return () => clearInterval(interval);
-  }, [autoRefresh, functionName]);
+  }, [autoRefresh, fetchLogs]);
 
   useEffect(() => {
     let filtered = logs;
