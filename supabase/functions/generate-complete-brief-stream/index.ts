@@ -17,6 +17,31 @@ interface LogEvent {
   details?: string;
 }
 
+// Helper to log to database
+async function logToDatabase(
+  supabase: any,
+  userId: string | null,
+  eventType: string,
+  logLevel: string,
+  message: string,
+  details?: any,
+  durationMs?: number
+) {
+  try {
+    await supabase.from("edge_function_logs").insert({
+      function_name: "generate-complete-brief-stream",
+      user_id: userId,
+      event_type: eventType,
+      log_level: logLevel,
+      message: message,
+      details: details ? JSON.parse(JSON.stringify(details)) : null,
+      duration_ms: durationMs,
+    });
+  } catch (error) {
+    logger.error("Failed to log to database", { error });
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -50,6 +75,9 @@ serve(async (req) => {
       try {
         const startTime = Date.now();
         sendLog({ timestamp: Date.now(), type: "info", icon: "📡", message: "Connexion établie..." });
+        
+        let userId: string | null = null;
+        let supabaseClient: any;
 
         const authHeader = req.headers.get("Authorization");
         if (!authHeader) {
@@ -61,21 +89,19 @@ serve(async (req) => {
         const userIdHeader = req.headers.get("x-user-id");
         const isServiceRole = authHeader.includes(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
         
-        let userId: string;
-        
         if (isServiceRole && userIdHeader) {
           // System call from CRON
           userId = userIdHeader;
           logger.info("System call detected", { user_id: userId });
         } else {
           // Regular user call
-          const supabase = createClient(
+          const tempSupabase = createClient(
             Deno.env.get("SUPABASE_URL") ?? "",
             Deno.env.get("SUPABASE_ANON_KEY") ?? "",
             { global: { headers: { Authorization: authHeader } } }
           );
 
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          const { data: { user }, error: userError } = await tempSupabase.auth.getUser();
           if (userError || !user) {
             sendError("Unauthorized");
             return;
@@ -84,37 +110,45 @@ serve(async (req) => {
         }
 
         // Use service role client for all operations
-        const supabase = createClient(
+        supabaseClient = createClient(
           Deno.env.get("SUPABASE_URL") ?? "",
           Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
         );
 
         sendLog({ timestamp: Date.now(), type: "success", icon: "👤", message: "Utilisateur authentifié" });
+        
+        // Log workflow start
+        await logToDatabase(supabaseClient, userId, "start", "info", "Brief generation workflow started", {
+          is_system_call: isServiceRole
+        });
 
         // Rate limiting check
         sendLog({ timestamp: Date.now(), type: "info", icon: "⏱️", message: "Vérification des limites..." });
         const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
-        const { count } = await supabase
+        const { count } = await supabaseClient
           .from('briefs')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
           .gte('created_at', oneHourAgo);
 
         if (count && count >= 5) {
+          await logToDatabase(supabaseClient, userId, "error", "warning", "Rate limit exceeded", { count });
           sendError('Rate limit: Maximum 5 briefs per hour. Please try again later.');
           return;
         }
 
         // Étape 1: Récupérer le contexte utilisateur
+        const prefStartTime = Date.now();
         sendLog({ timestamp: Date.now(), type: "info", icon: "🔍", message: "Récupération des préférences utilisateur..." });
         
-        const { data: preferences, error: prefError } = await supabase
+        const { data: preferences, error: prefError } = await supabaseClient
           .from("preferences")
           .select("*, avatars(*)")
           .eq("user_id", userId)
           .single();
 
         if (prefError || !preferences) {
+          await logToDatabase(supabaseClient, userId, "error", "error", "User preferences not found", { error: prefError?.message });
           sendError("User preferences not found");
           return;
         }
@@ -124,22 +158,33 @@ serve(async (req) => {
 
         // Récupérer la voix
         const voiceId = preferences.voice_id || avatar.default_tone;
-        const { data: voice } = await supabase
+        const { data: voice } = await supabaseClient
           .from("elevenlabs_voices")
           .select("name, description")
           .eq("voice_id", voiceId)
           .single();
 
         sendLog({ timestamp: Date.now(), type: "success", icon: "🎙️", message: `Voix: ${voice?.name || "Default"}`, details: voice?.description });
+        
+        await logToDatabase(supabaseClient, userId, "preferences_loaded", "info", "User preferences loaded", {
+          avatar: avatar.name,
+          voice: voice?.name || voiceId,
+          tone: preferences.tone,
+          language: preferences.lang
+        }, Date.now() - prefStartTime);
 
         // Étape 2: Récupérer les données Airtable
+        const airtableStartTime = Date.now();
         sendLog({ timestamp: Date.now(), type: "info", icon: "📊", message: "Récupération des données Airtable..." });
 
-        const airtableResponse = await supabase.functions.invoke("fetch-airtable-data", {
+        const airtableResponse = await supabaseClient.functions.invoke("fetch-airtable-data", {
           body: {},
         });
 
         if (airtableResponse.error) {
+          await logToDatabase(supabaseClient, userId, "airtable_fetch", "error", "Failed to fetch Airtable data", {
+            error: airtableResponse.error.message
+          });
           sendError("Failed to fetch Airtable data");
           return;
         }
@@ -148,6 +193,7 @@ serve(async (req) => {
         const totalRecords = airtableData.total_records;
 
         if (totalRecords === 0) {
+          await logToDatabase(supabaseClient, userId, "airtable_fetch", "warning", "No data found in Airtable views");
           sendError("No data found in Airtable views");
           return;
         }
@@ -162,6 +208,16 @@ serve(async (req) => {
           });
         });
         sendLog({ timestamp: Date.now(), type: "success", icon: "✅", message: `${totalRecords} records récupérés depuis ${airtableData.views.length} vues` });
+        
+        await logToDatabase(supabaseClient, userId, "airtable_fetch", "info", "Airtable data fetched successfully", {
+          total_records: totalRecords,
+          views_count: airtableData.views.length,
+          views: airtableData.views.map((v: any) => ({
+            base: v.base_name,
+            view: v.view_name,
+            records: v.record_count
+          }))
+        }, Date.now() - airtableStartTime);
 
         // Étape 3: Analyse du volume
         sendLog({ timestamp: Date.now(), type: "info", icon: "⚖️", message: "Analyse du volume de données..." });
@@ -224,13 +280,14 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         const userPrompt = `Voici les données de la semaine ${weekStart} :\n\n${JSON.stringify(filteredData, null, 2)}`;
 
         // Étape 5: Génération du texte avec DeepSeek
+        const deepseekStartTime = Date.now();
         sendLog({ timestamp: Date.now(), type: "info", icon: "🤖", message: "Génération du brief avec DeepSeek..." });
 
         // Extract target duration from preferences (default to 2 minutes)
         const durationMatch = preferences.brief_duration?.match(/(\d+)/);
         const targetDurationMinutes = durationMatch ? parseInt(durationMatch[1]) : 2;
 
-        const deepseekResponse = await supabase.functions.invoke("generate-brief-text", {
+        const deepseekResponse = await supabaseClient.functions.invoke("generate-brief-text", {
           body: {
             domain: avatar.role,
             data: userPrompt,
@@ -241,6 +298,9 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         });
 
         if (deepseekResponse.error) {
+          await logToDatabase(supabaseClient, userId, "deepseek", "error", "Failed to generate brief text", {
+            error: deepseekResponse.error.message
+          });
           sendError("Failed to generate brief text");
           return;
         }
@@ -259,12 +319,23 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
           });
         }
         sendLog({ timestamp: Date.now(), type: "success", icon: "✅", message: "Brief généré", details: `${narrativeText.length} caractères, ${wordCount} mots` });
+        
+        await logToDatabase(supabaseClient, userId, "deepseek", "info", "Brief text generated successfully", {
+          model: deepseekResult.model,
+          text_length: narrativeText.length,
+          word_count: wordCount,
+          tokens_input: deepseekResult.usage?.prompt_tokens,
+          tokens_output: deepseekResult.usage?.completion_tokens,
+          target_duration_minutes: targetDurationMinutes
+        }, Date.now() - deepseekStartTime);
 
         // Étape 6: Génération de l'audio avec ElevenLabs
+        const elevenLabsStartTime = Date.now();
         sendLog({ timestamp: Date.now(), type: "info", icon: "🎤", message: "Génération audio..." });
 
         const elevenLabsApiKey = Deno.env.get("ELEVENLABS_API_KEY");
         if (!elevenLabsApiKey) {
+          await logToDatabase(supabaseClient, userId, "elevenlabs", "error", "ELEVENLABS_API_KEY not configured");
           sendError("ELEVENLABS_API_KEY not configured");
           return;
         }
@@ -301,6 +372,10 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
             status: elevenLabsResponse.status,
             error: errorText.substring(0, 200)
           });
+          await logToDatabase(supabaseClient, userId, "elevenlabs", "error", "ElevenLabs API error", {
+            status: elevenLabsResponse.status,
+            error: errorText.substring(0, 200)
+          });
           await sendLog({ 
             timestamp: Date.now(), 
             type: "error", 
@@ -318,12 +393,20 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         sendLog({ timestamp: Date.now(), type: "info", icon: "  └─", message: `Voix: ${voice?.name || voiceId}` });
         sendLog({ timestamp: Date.now(), type: "info", icon: "  └─", message: "Modèle: eleven_multilingual_v2" });
         sendLog({ timestamp: Date.now(), type: "success", icon: "✅", message: "Audio généré" });
+        
+        await logToDatabase(supabaseClient, userId, "elevenlabs", "info", "Audio generated successfully", {
+          voice_id: voiceId,
+          voice_name: voice?.name,
+          model: "eleven_multilingual_v2",
+          audio_size_bytes: audioBuffer.byteLength
+        }, Date.now() - elevenLabsStartTime);
+        const storageStartTime = Date.now();
         sendLog({ timestamp: Date.now(), type: "info", icon: "💾", message: "Upload de l'audio vers le stockage..." });
         
         const weekStartStr = weekStart.replace(/\//g, '-');
         const fileName = `${userId}/brief-${weekStartStr}-${Date.now()}.mp3`;
         
-        const { error: uploadError } = await supabase
+        const { error: uploadError } = await supabaseClient
           .storage
           .from('briefs-audio')
           .upload(fileName, audioBuffer, {
@@ -333,6 +416,9 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
 
         if (uploadError) {
           logger.error("Storage upload error", { error: uploadError.message });
+          await logToDatabase(supabaseClient, userId, "storage", "error", "Failed to upload audio", {
+            error: uploadError.message
+          });
           sendError("Failed to upload audio");
           return;
         }
@@ -342,11 +428,16 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         const audioPath = fileName;
 
         sendLog({ timestamp: Date.now(), type: "success", icon: "✅", message: "Audio uploadé" });
+        
+        await logToDatabase(supabaseClient, userId, "storage", "info", "Audio uploaded to storage", {
+          file_path: fileName,
+          file_size_bytes: audioBuffer.byteLength
+        }, Date.now() - storageStartTime);
 
         // Étape 7: Sauvegarde dans la table briefs (UPSERT)
         sendLog({ timestamp: Date.now(), type: "info", icon: "💾", message: "Sauvegarde du brief..." });
 
-        const { data: briefData, error: briefError } = await supabase
+        const { data: briefData, error: briefError } = await supabaseClient
           .from("briefs")
           .upsert({
             user_id: userId,
@@ -368,6 +459,9 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
           .single();
 
         if (briefError) {
+          await logToDatabase(supabaseClient, userId, "error", "error", "Failed to save brief", {
+            error: briefError.message
+          });
           sendError(briefError.message);
           return;
         }
@@ -379,12 +473,23 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         sendLog({ timestamp: Date.now(), type: "success", icon: "🎉", message: `Workflow terminé en ${duration}s` });
 
         // Generate signed URL for immediate playback (24 hours expiry)
-        const { data: signedUrlData } = await supabase
+        const { data: signedUrlData } = await supabaseClient
           .storage
           .from('briefs-audio')
           .createSignedUrl(audioPath, 86400); // 24 hours = 86400 seconds
 
         const signedAudioUrl = signedUrlData?.signedUrl || audioPath;
+        
+        // Log successful completion
+        await logToDatabase(supabaseClient, userId, "success", "info", "Brief generation completed successfully", {
+          brief_id: briefData.id,
+          total_records: totalRecords,
+          filtered_records: filteredRecords,
+          views_count: airtableData.views.length,
+          text_length: narrativeText.length,
+          word_count: wordCount,
+          audio_size_bytes: audioBuffer.byteLength
+        }, endTime - startTime);
 
         // Envoyer le résultat final
         sendResult({
@@ -409,6 +514,7 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
         logger.error("Error in generate-complete-brief-stream", { 
           error: error instanceof Error ? error.message : "Unknown error" 
         });
+        
         sendLog({ 
           timestamp: Date.now(), 
           type: "error", 

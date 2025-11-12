@@ -294,6 +294,42 @@ export type Database = {
         }
         Relationships: []
       }
+      edge_function_logs: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          duration_ms: number | null
+          event_type: string
+          function_name: string
+          id: string
+          log_level: string
+          message: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          duration_ms?: number | null
+          event_type: string
+          function_name: string
+          id?: string
+          log_level?: string
+          message: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          duration_ms?: number | null
+          event_type?: string
+          function_name?: string
+          id?: string
+          log_level?: string
+          message?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       elevenlabs_voices: {
         Row: {
           category: string | null
@@ -627,6 +663,7 @@ export type Database = {
         }
         Returns: string
       }
+      delete_old_edge_function_logs: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

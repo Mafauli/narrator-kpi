@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { EdgeFunctionLogs } from "@/components/admin/EdgeFunctionLogs";
+import { DatabaseLogs } from "@/components/admin/DatabaseLogs";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -47,9 +48,9 @@ const AdminLogs = () => {
           </TabsList>
 
           <TabsContent value="generate-complete" className="space-y-4">
-            <EdgeFunctionLogs 
+            <DatabaseLogs 
               functionName="generate-complete-brief-stream"
-              title="Logs - Génération Brief Complet (Streaming)"
+              title="Logs - Génération Brief Complet (Base de données)"
             />
           </TabsContent>
 
