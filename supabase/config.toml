@@ -6,6 +6,15 @@ verify_jwt = false
 [functions.airtable-oauth-callback]
 verify_jwt = false
 
+[functions.shopify-oauth-start]
+verify_jwt = true
+
+[functions.shopify-oauth-callback]
+verify_jwt = true
+
+[functions.fetch-shopify-data]
+verify_jwt = true
+
 [functions.whatsapp-webhook]
 verify_jwt = false
 

@@ -7,6 +7,7 @@ import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
+import Sources from "./pages/Sources";
 import TestBriefGeneration from "./pages/TestBriefGeneration";
 import Admin from "./pages/Admin";
 import AdminPrompts from "./pages/AdminPrompts";
@@ -38,6 +39,11 @@ const App = () => (
           <Route path="/app" element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/app/sources" element={
+            <ProtectedRoute>
+              <Sources />
             </ProtectedRoute>
           } />
           <Route path="/app/test-brief-generation" element={
