@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LogOut, Settings, Pause, Play } from "lucide-react";
+import { LogOut, Settings, Pause, Play, Database } from "lucide-react";
 import { BriefTimeline } from "@/components/dashboard/BriefTimeline";
 import { BriefPlayer } from "@/components/dashboard/BriefPlayer";
 import { AnimatePresence } from "framer-motion";
@@ -135,6 +135,10 @@ export default function Dashboard() {
             <Button variant="outline" onClick={() => navigate('/app/onboarding')}>
               <Settings className="w-4 h-4 mr-2" />
               Configuration
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/app/sources')}>
+              <Database className="w-4 h-4 mr-2" />
+              Sources
             </Button>
             <Button variant="outline" onClick={() => navigate('/app/test-brief-generation')}>
               Test Brief
