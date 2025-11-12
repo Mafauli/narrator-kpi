@@ -294,6 +294,36 @@ export type Database = {
         }
         Relationships: []
       }
+      connections_shopify: {
+        Row: {
+          access_token_encrypted: string
+          created_at: string
+          id: string
+          scopes: string | null
+          shop_domain: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_encrypted: string
+          created_at?: string
+          id?: string
+          scopes?: string | null
+          shop_domain: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_encrypted?: string
+          created_at?: string
+          id?: string
+          scopes?: string | null
+          shop_domain?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       edge_function_logs: {
         Row: {
           created_at: string | null
@@ -530,6 +560,33 @@ export type Database = {
           timezone?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      shopify_kpis: {
+        Row: {
+          created_at: string
+          id: string
+          kpis_json: Json
+          shop_domain: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kpis_json: Json
+          shop_domain: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kpis_json?: Json
+          shop_domain?: string
+          user_id?: string
+          week_start?: string
         }
         Relationships: []
       }
