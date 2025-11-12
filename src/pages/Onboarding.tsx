@@ -45,6 +45,7 @@ const Onboarding = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isOnboardingComplete, setIsOnboardingComplete] = useState(false);
 
   // Step 1: Airtable connection
   const [airtableConnected, setAirtableConnected] = useState(false);
@@ -135,6 +136,11 @@ const Onboarding = () => {
         if (prefsData.avatar_id) {
           setSelectedVoice(prefsData.voice_id || '');
         }
+      }
+
+      // Détecter si l'onboarding est complet
+      if (viewsData && viewsData.length > 0 && prefsData) {
+        setIsOnboardingComplete(true);
       }
 
       // Check if Airtable is connected
@@ -602,17 +608,17 @@ const Onboarding = () => {
         <div key={i} className="flex items-center gap-2">
           <button
             onClick={() => setStep(i)}
-            disabled={i > step && step < 6}
+            disabled={!isOnboardingComplete && i > step && step < 6}
             className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all ${
-              step >= i 
+              step >= i || isOnboardingComplete
                 ? "bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer" 
                 : "bg-muted text-muted-foreground cursor-not-allowed"
             } ${step === i ? "ring-2 ring-accent ring-offset-2" : ""}`}
-            title={i > step ? "Complétez les étapes précédentes" : `Étape ${i}`}
+            title={!isOnboardingComplete && i > step ? "Complétez les étapes précédentes" : `Étape ${i}`}
           >
             {i}
           </button>
-          {i < 6 && <div className={`w-12 h-1 ${step > i ? "bg-accent" : "bg-muted"}`} />}
+          {i < 6 && <div className={`w-12 h-1 ${step > i || isOnboardingComplete ? "bg-accent" : "bg-muted"}`} />}
         </div>
       ))}
     </div>
