@@ -38,40 +38,34 @@ serve(async (req) => {
     const data = await response.json();
     logger.info("Fetched voices from ElevenLabs", { voicesCount: data.voices.length });
     
-    logger.debug("Sample voices", { 
-      samples: data.voices.slice(0, 3).map((v: any) => ({
-        name: v.name,
-        language: v.labels?.language
-      }))
-    });
-    
-    // Filter for French voices (1 for the free tier)
+    // Filter for French voices - comprehensive search
     const frenchVoices = data.voices.filter((v: any) => {
-      const lang = v.labels?.language?.toLowerCase() || "";
-      const desc = (v.description?.toLowerCase() || "") + " " + (v.name?.toLowerCase() || "");
+      const language = v.labels?.language?.toLowerCase() || "";
+      const accent = v.labels?.accent?.toLowerCase() || "";
+      const name = v.name?.toLowerCase() || "";
+      const description = (v.description?.toLowerCase() || "");
       
-      return lang === "fr" || 
-             lang === "french" || 
-             desc.includes("french") ||
-             desc.includes("français");
+      // Popular French voice names from ElevenLabs
+      const popularFrenchVoices = ["natasha", "francesca", "iris", "dorothée", "dorothee", "tchad", "aaron", "adam", "emily", "chloe"];
+      const hasPopularName = popularFrenchVoices.some(n => name.includes(n));
+      
+      // Check language, accent, description or popular names
+      return language.includes("fr") || 
+             language.includes("french") || 
+             accent.includes("french") ||
+             description.includes("french") ||
+             description.includes("français") ||
+             hasPopularName;
     });
 
-    logger.info("French voices filtered", { frenchVoicesCount: frenchVoices.length });
-
-    // For testing: Take the first French voice and the first 7 available voices
-    // This ensures we have 8 voices mapped to 8 avatars
-    const selectedVoices = [
-      ...frenchVoices.slice(0, 1), // 1 French voice
-      ...data.voices.slice(0, 7)    // First 7 voices (may overlap, but that's ok for testing)
-    ];
-
-    // Remove duplicates
-    const uniqueVoices = Array.from(new Map(selectedVoices.map(v => [v.voice_id, v])).values());
-
-    logger.info("Selected unique voices for avatars", { 
-      uniqueVoicesCount: uniqueVoices.length,
-      voiceNames: uniqueVoices.map((v: any) => v.name).join(", ")
+    logger.info("French voices filtered", { 
+      frenchVoicesCount: frenchVoices.length,
+      totalVoices: data.voices.length,
+      voiceNames: frenchVoices.map((v: any) => v.name).slice(0, 10).join(", ")
     });
+
+    // Use all French voices found
+    const uniqueVoices = frenchVoices;
 
     // Initialize Supabase with service role key
     const supabaseClient = createClient(
@@ -94,94 +88,21 @@ serve(async (req) => {
     }));
 
     logger.info("Upserting voices to database", { voicesCount: voicesToUpsert.length });
-    const { error: upsertError } = await supabaseClient
+    const { data: upsertedVoices, error: upsertError } = await supabaseClient
       .from("elevenlabs_voices")
-      .upsert(voicesToUpsert, { onConflict: "voice_id" });
+      .upsert(voicesToUpsert, { onConflict: "voice_id" })
+      .select();
 
     if (upsertError) {
       logger.error("Database upsert error", { error: upsertError.message });
       throw upsertError;
     }
 
-    // Fetch all avatars
-    const { data: avatars, error: avatarsError } = await supabaseClient
-      .from("avatars")
-      .select("id, name, voice_reco");
-
-    if (avatarsError) throw avatarsError;
-    logger.info("Fetched avatars", { avatarsCount: avatars.length });
-
-    // Create a map for fuzzy matching
-    const voiceMap: Record<string, any> = {};
-    uniqueVoices.forEach((v: any) => {
-      const normalizedName = v.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      voiceMap[normalizedName] = v;
-    });
-
-    // Map avatars to voices - distribute voices evenly
-    const mappings: Array<{
-      avatar_id: string;
-      voice_name: string;
-      elevenlabs_voice_id: string;
-      is_default: boolean;
-    }> = [];
-    let matchCount = 0;
-
-    avatars.forEach((avatar, index) => {
-      // Assign voices in round-robin fashion to ensure all avatars get a voice
-      const voiceIndex = index % uniqueVoices.length;
-      const matchedVoice = uniqueVoices[voiceIndex];
-      
-      if (matchedVoice) {
-        logger.debug("Mapped avatar to voice", { 
-          avatar: avatar.name, 
-          voice: matchedVoice.name, 
-          voiceId: matchedVoice.voice_id 
-        });
-        mappings.push({
-          avatar_id: avatar.id,
-          voice_name: avatar.voice_reco,
-          elevenlabs_voice_id: matchedVoice.voice_id,
-          is_default: true
-        });
-        matchCount++;
-      }
-    });
-
-    logger.info("Avatar voice mapping completed", { 
-      matchedCount: matchCount, 
-      totalAvatars: avatars.length 
-    });
-
-    // Insert mappings
-    if (mappings.length > 0) {
-      // First, delete existing mappings for these avatars to avoid conflicts
-      const avatarIds = mappings.map(m => m.avatar_id);
-      await supabaseClient
-        .from("avatar_voice_mapping")
-        .delete()
-        .in("avatar_id", avatarIds);
-
-      const { data: insertedMappings, error: mappingError } = await supabaseClient
-        .from("avatar_voice_mapping")
-        .insert(mappings)
-        .select();
-
-      if (mappingError) {
-        logger.error("Mapping insert error", { error: mappingError.message });
-        throw mappingError;
-      }
-
-      logger.info("Voice mappings inserted", { mappingsCount: insertedMappings.length });
-    }
-
     return new Response(
       JSON.stringify({ 
         success: true, 
-        voices_synced: uniqueVoices.length,
-        avatars_total: avatars.length,
-        avatars_mapped: matchCount,
-        mappings: mappings
+        count: upsertedVoices?.length || 0,
+        voices: upsertedVoices || []
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

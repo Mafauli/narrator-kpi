@@ -61,6 +61,24 @@ export const AvatarsManager = () => {
   const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
   const [uploading, setUploading] = useState(false);
   const { voices, syncing, syncVoices } = useElevenLabsVoices();
+  const [initializing, setInitializing] = useState(false);
+
+  const initializeVoices = async () => {
+    try {
+      setInitializing(true);
+      const { data, error } = await supabase.functions.invoke("initialize-avatar-voices");
+      
+      if (error) throw error;
+      
+      toast.success(`${data.count} voix françaises synchronisées depuis ElevenLabs`);
+      window.location.reload();
+    } catch (error) {
+      console.error("Error initializing voices:", error);
+      toast.error("Erreur lors de l'initialisation des voix");
+    } finally {
+      setInitializing(false);
+    }
+  };
 
   const fetchAvatars = async () => {
     try {
@@ -156,27 +174,29 @@ export const AvatarsManager = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Gestion des Avatars</CardTitle>
-            <Button 
-              onClick={syncVoices} 
-              disabled={syncing}
-              variant="outline"
-              size="sm"
-            >
-              {syncing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Synchronisation...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Synchroniser les voix ElevenLabs
-                </>
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={initializeVoices} 
+                disabled={initializing || syncing}
+                variant={voices.length < 8 ? "default" : "outline"}
+                size="sm"
+              >
+                {initializing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Initialisation...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    {voices.length < 8 ? "Récupérer les voix françaises" : "Re-synchroniser"}
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
           <p className="text-sm text-muted-foreground mt-2">
-            {voices.length} voix françaises disponibles
+            {voices.length} voix disponibles en base de données
           </p>
         </CardHeader>
         <CardContent>
