@@ -238,7 +238,7 @@ export const AvatarsManager = () => {
                         {avatar.role}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {avatar.voice_reco}
+                        {voices.find(v => v.voice_id === avatar.voice_reco)?.name || avatar.voice_reco}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {avatar.skills.slice(0, 2).join(', ')}
