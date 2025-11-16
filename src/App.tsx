@@ -7,6 +7,7 @@ import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
+import BriefSetup from "./pages/BriefSetup";
 import Sources from "./pages/Sources";
 import TestBriefGeneration from "./pages/TestBriefGeneration";
 import Admin from "./pages/Admin";
@@ -34,6 +35,11 @@ const App = () => (
           <Route path="/app/onboarding" element={
             <ProtectedRoute>
               <Onboarding />
+            </ProtectedRoute>
+          } />
+          <Route path="/app/brief-setup" element={
+            <ProtectedRoute>
+              <BriefSetup />
             </ProtectedRoute>
           } />
           <Route path="/app" element={

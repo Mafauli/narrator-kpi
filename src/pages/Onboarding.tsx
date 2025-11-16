@@ -9,11 +9,10 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Play, Database, Settings, Sparkles, HelpCircle, ChevronDown, User, Volume2, RefreshCw, Calendar, Pause } from "lucide-react";
+import { Play, Database, Settings, Sparkles, HelpCircle, ChevronDown, User, Volume2, RefreshCw, Pause } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AIPreferencesStep } from "@/components/onboarding/AIPreferencesStep";
-import { SchedulingStep } from "@/components/onboarding/SchedulingStep";
 import { PhoneInput } from "@/components/PhoneInput";
 import "@/components/PhoneInput.css";
 
@@ -305,15 +304,6 @@ const Onboarding = () => {
   const [firstName, setFirstName] = useState("");
   const [whatsappPhone, setWhatsappPhone] = useState("");
   const [showTestBriefForm, setShowTestBriefForm] = useState(false);
-  const [generatingBrief, setGeneratingBrief] = useState(false);
-  const [generationStep, setGenerationStep] = useState("");
-
-  // Step 6: Scheduling
-  const [scheduleFrequency, setScheduleFrequency] = useState<'weekly' | 'monthly' | 'daily'>('weekly');
-  const [scheduleDay, setScheduleDay] = useState(1); // Lundi par défaut pour weekly, 1 pour monthly
-  const [scheduleHour, setScheduleHour] = useState(8);
-  const [scheduleMinute, setScheduleMinute] = useState(0);
-  const [scheduleTimezone, setScheduleTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
 
   const handleConnectAirtable = async () => {
     setIsLoading(true);
@@ -410,158 +400,36 @@ const Onboarding = () => {
       toast.error("Entre ton prénom");
       return;
     }
-    if (!whatsappPhone || whatsappPhone.length < 8) {
-      toast.error("Entre un numéro WhatsApp valide");
+    if (!whatsappPhone) {
+      toast.error("Entre ton numéro WhatsApp");
       return;
     }
 
-    setGeneratingBrief(true);
-
-    const funMessages = [
-      "🧠 L'IA lit tes données comme un pro...",
-      "🔍 Recherche des insights cachés dans tes chiffres...",
-      "💡 Détection des tendances qui comptent vraiment...",
-      "🎨 Création d'un brief sur-mesure pour toi...",
-      "🗣️ Transformation en audio avec ta voix préférée...",
-      "📲 Préparation de l'envoi sur WhatsApp..."
-    ];
-
-    let currentMessageIndex = 0;
-    setGenerationStep(funMessages[0]);
-
-    const messageInterval = setInterval(() => {
-      currentMessageIndex = (currentMessageIndex + 1) % funMessages.length;
-      setGenerationStep(funMessages[currentMessageIndex]);
-    }, 8000);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Non connecté");
-
-      // Sauvegarder first_name et whatsapp_phone dans preferences
-      await supabase.from("preferences").update({
-        first_name: firstName,
-        whatsapp_phone: whatsappPhone
-      }).eq("user_id", user.id);
-
-      setGenerationStep("📊 Récupération de vos données Airtable...");
-
-      // Calculer les statistiques des vues
-      const { data: views } = await supabase
-        .from('airtable_views')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('enabled', true);
-
-      if (!views || views.length === 0) {
-        throw new Error("Aucune vue Airtable sélectionnée");
-      }
-
-      const totalLines = views.reduce((sum, view) => {
-        const schemaData = view.schema_json as any;
-        const rowCount = schemaData?.fields?.[0]?.sampleData?.length || 0;
-        return sum + rowCount;
-      }, 0);
-
-      const totalCells = views.reduce((sum, view) => {
-        const schemaData = view.schema_json as any;
-        const fieldCount = schemaData?.fields?.length || 0;
-        const rowCount = schemaData?.fields?.[0]?.sampleData?.length || 0;
-        return sum + (fieldCount * rowCount);
-      }, 0);
-
-      setGenerationStep(`📊 ${totalLines} lignes détectées dans ${views.length} vue${views.length > 1 ? 's' : ''} (≈${totalCells} cellules)`);
-
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      setGenerationStep("🤖 Analyse de vos données (~22s)...");
-
-      const { data: briefData, error: briefError } = await supabase.functions.invoke(
-        'generate-complete-brief-stream',
-        { body: { user_id: user.id, is_onboarding: true } }
-      );
-
-      if (briefError) throw briefError;
-      if (!briefData?.brief_id) throw new Error("Erreur lors de la génération du brief");
-
-      clearInterval(messageInterval);
-      setGenerationStep("📲 Envoi de ton brief sur WhatsApp...");
-
-      const { error: sendError } = await supabase.functions.invoke(
-        'send-whatsapp-brief',
-        { 
-          body: { 
-            brief_id: briefData.brief_id,
-            phone_number: whatsappPhone
-          }
-        }
-      );
-
-      if (sendError) throw sendError;
-
-      setGenerationStep("✅ Brief envoyé avec succès !");
-      toast.success("🎉 Ton premier brief est en route sur WhatsApp !");
-      
-      setTimeout(() => {
-        setStep(6);
-        setShowTestBriefForm(false);
-        setGeneratingBrief(false);
-        setGenerationStep("");
-      }, 2000);
-    } catch (error: any) {
-      console.error("Error generating brief:", error);
-      toast.error(error.message || "Erreur lors de la génération du brief");
-      setGenerationStep("");
-      clearInterval(messageInterval);
-    } finally {
-      setGeneratingBrief(false);
-    }
-  };
-
-  const handleActivateSchedule = async () => {
     setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non connecté");
 
-      // Calculer next_send_at via la fonction database
-      const { data: nextSendData, error: calcError } = await supabase.rpc('calculate_next_send_at', {
-        schedule_type: scheduleFrequency,
-        day_of_week: scheduleFrequency === 'weekly' ? scheduleDay : null,
-        day_of_month: scheduleFrequency === 'monthly' ? scheduleDay : null,
-        hour: scheduleHour,
-        minute: scheduleMinute,
-        timezone: scheduleTimezone,
-        from_timestamp: new Date().toISOString()
-      });
+      // Sauvegarder first_name et whatsapp_phone dans preferences
+      const { error: updateError } = await supabase.from("preferences").update({
+        first_name: firstName,
+        whatsapp_phone: whatsappPhone
+      }).eq("user_id", user.id);
 
-      if (calcError) throw calcError;
+      if (updateError) throw updateError;
 
-      // Insérer le schedule dans scheduled_briefs
-      const { error: insertError } = await supabase.from('scheduled_briefs').insert({
-        user_id: user.id,
-        schedule_type: scheduleFrequency,
-        day_of_week: scheduleFrequency === 'weekly' ? scheduleDay : null,
-        day_of_month: scheduleFrequency === 'monthly' ? scheduleDay : null,
-        hour: scheduleHour,
-        minute: scheduleMinute,
-        timezone: scheduleTimezone,
-        phone_number: whatsappPhone,
-        is_active: true,
-        next_send_at: nextSendData
-      });
-
-      if (insertError) throw insertError;
-
-      toast.success("🎉 Envois automatiques activés !");
-      navigate("/app");
+      toast.success("Informations sauvegardées !");
+      
+      // Rediriger vers la page de génération et configuration
+      navigate("/app/brief-setup");
     } catch (error: any) {
-      console.error("Error activating schedule:", error);
-      toast.error(error.message || "Erreur lors de l'activation");
+      console.error("Error saving user data:", error);
+      toast.error(error.message || "Erreur lors de la sauvegarde");
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const handleSaveAvatar = async () => {
     if (!selectedAvatar) {
@@ -1048,7 +916,7 @@ const Onboarding = () => {
                   Tu peux modifier ces paramètres à tout moment depuis la page Paramètres.
                 </p>
 
-                {!showTestBriefForm && !generatingBrief && (
+                {!showTestBriefForm && (
                   <Button
                     className="w-full bg-accent hover:bg-accent/90"
                     onClick={() => setShowTestBriefForm(true)}
@@ -1058,7 +926,7 @@ const Onboarding = () => {
                   </Button>
                 )}
 
-                {showTestBriefForm && !generatingBrief && (
+                {showTestBriefForm && (
                   <div className="space-y-4 border-t pt-6">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">Comment voulez-vous que je vous appelle ?</Label>
@@ -1098,67 +966,6 @@ const Onboarding = () => {
                     </div>
                   </div>
                 )}
-
-                {generatingBrief && (
-                  <div className="space-y-4 border-t pt-6">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                      <p className="text-center font-medium text-lg">{generationStep}</p>
-                      <p className="text-center text-sm text-muted-foreground">
-                        {generationStep.includes("Airtable") && "On analyse tes données pour comprendre ton activité..."}
-                        {generationStep.includes("WhatsApp") && "Plus que quelques secondes avant de recevoir ton brief ! 📱"}
-                        {generationStep.includes("succès") && "C'est parti ! Direction ton WhatsApp 🎉"}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 6: Scheduling */}
-          {step === 6 && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2 text-accent mb-2">
-                  <Calendar className="h-5 w-5" />
-                  <CardTitle>Planifie tes envois automatiques</CardTitle>
-                </div>
-                <CardDescription>
-                  Configure quand tu veux recevoir tes briefs hebdomadaires ou mensuels
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <SchedulingStep
-                  scheduleFrequency={scheduleFrequency}
-                  setScheduleFrequency={setScheduleFrequency}
-                  scheduleDay={scheduleDay}
-                  setScheduleDay={setScheduleDay}
-                  scheduleHour={scheduleHour}
-                  setScheduleHour={setScheduleHour}
-                  scheduleMinute={scheduleMinute}
-                  setScheduleMinute={setScheduleMinute}
-                  timezone={scheduleTimezone}
-                  setTimezone={setScheduleTimezone}
-                  whatsappPhone={whatsappPhone}
-                />
-
-                <div className="flex gap-4 pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setStep(5)}
-                    className="flex-1"
-                  >
-                    Retour
-                  </Button>
-                  <Button
-                    onClick={handleActivateSchedule}
-                    disabled={isLoading}
-                    className="flex-1 bg-accent hover:bg-accent/90"
-                  >
-                    {isLoading ? "Activation..." : "Activer les envois automatiques"}
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           )}
