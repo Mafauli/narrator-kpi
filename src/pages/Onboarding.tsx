@@ -839,7 +839,7 @@ const Onboarding = () => {
                             <img 
                               src={avatarImages[avatar.id]} 
                               alt={avatar.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover object-top"
                             />
                           </div>
                           <div>
