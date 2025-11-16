@@ -908,26 +908,21 @@ const Onboarding = () => {
                                     audioRef.current = null;
                                   }
 
-                                  // Fetch the voice mapping for this avatar
-                                  const { data: mapping } = await supabase
-                                    .from('avatar_voice_mapping')
-                                    .select('elevenlabs_voice_id')
-                                    .eq('avatar_id', avatar.id)
-                                    .single();
-                                  
-                                  if (!mapping?.elevenlabs_voice_id) {
-                                    toast.error("Aucune voix mappée pour cet avatar");
+                                  // Use voice_reco from avatar directly
+                                  if (!avatar.voice_reco) {
+                                    toast.error("Aucune voix assignée pour cet avatar");
                                     return;
                                   }
 
-                                  // Fetch voice details
-                                  const { data: voice } = await supabase
+                                  // Fetch voice details using voice_reco
+                                  const { data: voice, error } = await supabase
                                     .from('elevenlabs_voices')
                                     .select('preview_url')
-                                    .eq('voice_id', mapping.elevenlabs_voice_id)
+                                    .eq('voice_id', avatar.voice_reco)
                                     .single();
                                   
-                                  if (!voice?.preview_url) {
+                                  if (error || !voice?.preview_url) {
+                                    console.error('Error fetching voice:', error);
                                     toast.error("Preview audio non disponible");
                                     return;
                                   }
