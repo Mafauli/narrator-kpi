@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Pencil, Trash2, Plus, Upload, Loader2, RefreshCw, Volume2 } from "lucide-react";
+import { Pencil, Upload, Loader2, RefreshCw, Volume2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useElevenLabsVoices } from "@/hooks/useElevenLabsVoices";
@@ -36,22 +36,16 @@ interface Avatar {
   id: string;
   name: string;
   role: string;
-  pitch: string;
-  long_pitch: string;
-  default_tone: string;
-  image_url: string | null;
-  voice_reco: string;
-  skills: string[];
-  best_for: string[];
-  example_actions: string[];
-}
-
-interface ElevenLabsVoice {
+  promise: string;
+  personality: string;
+  voice_tone: string;
+  ideal_for: string;
+  domains: string;
+  action_types: string;
   voice_id: string;
-  name: string;
-  preview_url: string | null;
-  gender: string | null;
-  description: string | null;
+  sample_text: string;
+  sample_audio_url: string | null;
+  image_url: string | null;
 }
 
 export const AvatarsManager = () => {
@@ -62,19 +56,23 @@ export const AvatarsManager = () => {
   const [uploading, setUploading] = useState(false);
   const { voices, syncing, syncVoices } = useElevenLabsVoices();
   const [initializing, setInitializing] = useState(false);
+  const [generatingSample, setGeneratingSample] = useState(false);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
 
-  const initializeVoices = async () => {
+  const initializeAvatars = async () => {
     try {
       setInitializing(true);
-      const { data, error } = await supabase.functions.invoke("initialize-avatar-voices");
+      toast.info("Initialisation des avatars et génération des samples audio...");
+      
+      const { data, error } = await supabase.functions.invoke("initialize-new-avatars");
       
       if (error) throw error;
       
-      toast.success(`${data.count} voix françaises synchronisées depuis ElevenLabs`);
-      window.location.reload();
+      toast.success(data.message);
+      await fetchAvatars();
     } catch (error) {
-      console.error("Error initializing voices:", error);
-      toast.error("Erreur lors de l'initialisation des voix");
+      console.error("Error initializing avatars:", error);
+      toast.error("Erreur lors de l'initialisation des avatars");
     } finally {
       setInitializing(false);
     }
@@ -146,14 +144,15 @@ export const AvatarsManager = () => {
         .update({
           name: selectedAvatar.name,
           role: selectedAvatar.role,
-          pitch: selectedAvatar.pitch,
-          long_pitch: selectedAvatar.long_pitch,
-          default_tone: selectedAvatar.default_tone,
+          promise: selectedAvatar.promise,
+          personality: selectedAvatar.personality,
+          voice_tone: selectedAvatar.voice_tone,
+          ideal_for: selectedAvatar.ideal_for,
+          domains: selectedAvatar.domains,
+          action_types: selectedAvatar.action_types,
+          voice_id: selectedAvatar.voice_id,
+          sample_text: selectedAvatar.sample_text,
           image_url: selectedAvatar.image_url,
-          voice_reco: selectedAvatar.voice_reco,
-          skills: selectedAvatar.skills,
-          best_for: selectedAvatar.best_for,
-          example_actions: selectedAvatar.example_actions,
         })
         .eq('id', selectedAvatar.id);
 
@@ -163,8 +162,60 @@ export const AvatarsManager = () => {
       setEditDialog(false);
       fetchAvatars();
     } catch (error) {
-      console.error('Error saving avatar:', error);
-      toast.error('Erreur lors de la sauvegarde');
+      console.error('Error updating avatar:', error);
+      toast.error('Erreur lors de la mise à jour');
+    }
+  };
+
+  const handleGenerateSample = async () => {
+    if (!selectedAvatar) return;
+
+    try {
+      setGeneratingSample(true);
+      toast.info("Génération du sample audio...");
+      
+      const { data, error } = await supabase.functions.invoke("generate-avatar-sample", {
+        body: {
+          voiceId: selectedAvatar.voice_id,
+          text: selectedAvatar.sample_text,
+          avatarId: selectedAvatar.id,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success("Sample audio généré avec succès");
+      setSelectedAvatar({ ...selectedAvatar, sample_audio_url: data.audioUrl });
+      await fetchAvatars();
+    } catch (error) {
+      console.error('Error generating sample:', error);
+      toast.error('Erreur lors de la génération du sample');
+    } finally {
+      setGeneratingSample(false);
+    }
+  };
+
+  const playAudioSample = async (url: string, avatarId: string) => {
+    if (playingAudioId === avatarId) {
+      setPlayingAudioId(null);
+      return;
+    }
+
+    try {
+      const audio = new Audio(url);
+      setPlayingAudioId(avatarId);
+      
+      audio.onended = () => setPlayingAudioId(null);
+      audio.onerror = () => {
+        toast.error("Erreur lors de la lecture du sample");
+        setPlayingAudioId(null);
+      };
+      
+      await audio.play();
+    } catch (error) {
+      console.error('Error playing audio:', error);
+      toast.error('Erreur lors de la lecture');
+      setPlayingAudioId(null);
     }
   };
 
@@ -176,9 +227,27 @@ export const AvatarsManager = () => {
             <CardTitle>Gestion des Avatars</CardTitle>
             <div className="flex gap-2">
               <Button 
-                onClick={initializeVoices} 
-                disabled={initializing || syncing}
-                variant={voices.length < 8 ? "default" : "outline"}
+                onClick={syncVoices} 
+                disabled={syncing}
+                variant="outline"
+                size="sm"
+              >
+                {syncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sync...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Sync Voix
+                  </>
+                )}
+              </Button>
+              <Button 
+                onClick={initializeAvatars} 
+                disabled={initializing}
+                variant="default"
                 size="sm"
               >
                 {initializing ? (
@@ -188,15 +257,15 @@ export const AvatarsManager = () => {
                   </>
                 ) : (
                   <>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    {voices.length < 8 ? "Récupérer les voix françaises" : "Re-synchroniser"}
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Initialiser les 8 Avatars
                   </>
                 )}
               </Button>
             </div>
           </div>
           <p className="text-sm text-muted-foreground mt-2">
-            {voices.length} voix disponibles en base de données
+            {voices.length} voix disponibles • {avatars.length} avatars configurés
           </p>
         </CardHeader>
         <CardContent>
@@ -213,7 +282,7 @@ export const AvatarsManager = () => {
                     <TableHead>Nom</TableHead>
                     <TableHead>Rôle</TableHead>
                     <TableHead>Voix</TableHead>
-                    <TableHead>Skills</TableHead>
+                    <TableHead>Sample</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -237,12 +306,19 @@ export const AvatarsManager = () => {
                       <TableCell className="text-sm text-muted-foreground">
                         {avatar.role}
                       </TableCell>
-                      <TableCell className="text-sm">
-                        {voices.find(v => v.voice_id === avatar.voice_reco)?.name || avatar.voice_reco}
+                      <TableCell className="text-xs">
+                        {voices.find(v => v.voice_id === avatar.voice_id)?.name || avatar.voice_id}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {avatar.skills.slice(0, 2).join(', ')}
-                        {avatar.skills.length > 2 && '...'}
+                      <TableCell>
+                        {avatar.sample_audio_url && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => playAudioSample(avatar.sample_audio_url!, avatar.id)}
+                          >
+                            <Volume2 className={`h-4 w-4 ${playingAudioId === avatar.id ? 'text-accent animate-pulse' : ''}`} />
+                          </Button>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
@@ -265,14 +341,14 @@ export const AvatarsManager = () => {
       <Dialog open={editDialog} onOpenChange={setEditDialog}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Éditer Avatar</DialogTitle>
+            <DialogTitle>Modifier l'avatar</DialogTitle>
             <DialogDescription>
-              Modifier les informations de l'avatar
+              Modifiez les informations de l'avatar
             </DialogDescription>
           </DialogHeader>
 
           {selectedAvatar && (
-            <div className="space-y-4 py-4">
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Nom</Label>
@@ -283,12 +359,126 @@ export const AvatarsManager = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Rôle</Label>
+                  <Label>ID</Label>
                   <Input
-                    value={selectedAvatar.role}
-                    onChange={(e) => setSelectedAvatar({ ...selectedAvatar, role: e.target.value })}
+                    value={selectedAvatar.id}
+                    disabled
+                    className="bg-muted"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Rôle simplifié</Label>
+                <Input
+                  value={selectedAvatar.role}
+                  onChange={(e) => setSelectedAvatar({ ...selectedAvatar, role: e.target.value })}
+                  placeholder="Ex: La gardienne de ta trésorerie"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Promesse</Label>
+                <Textarea
+                  value={selectedAvatar.promise}
+                  onChange={(e) => setSelectedAvatar({ ...selectedAvatar, promise: e.target.value })}
+                  placeholder="Ex: Elle t'aide à gagner plus et dépenser moins."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Personnalité</Label>
+                  <Input
+                    value={selectedAvatar.personality}
+                    onChange={(e) => setSelectedAvatar({ ...selectedAvatar, personality: e.target.value })}
+                    placeholder="Ex: Posée, pédagogue"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Ton/Voix</Label>
+                  <Input
+                    value={selectedAvatar.voice_tone}
+                    onChange={(e) => setSelectedAvatar({ ...selectedAvatar, voice_tone: e.target.value })}
+                    placeholder="Ex: Calme, rassurante"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Idéal pour</Label>
+                <Input
+                  value={selectedAvatar.ideal_for}
+                  onChange={(e) => setSelectedAvatar({ ...selectedAvatar, ideal_for: e.target.value })}
+                  placeholder="Ex: E-commerçants, SaaS"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Domaines</Label>
+                <Input
+                  value={selectedAvatar.domains}
+                  onChange={(e) => setSelectedAvatar({ ...selectedAvatar, domains: e.target.value })}
+                  placeholder="Ex: Trésorerie, rentabilité, économies"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Types d'actions</Label>
+                <Input
+                  value={selectedAvatar.action_types}
+                  onChange={(e) => setSelectedAvatar({ ...selectedAvatar, action_types: e.target.value })}
+                  placeholder="Ex: Alerter les fuites, recommander un prix"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Texte du sample (10 secondes)</Label>
+                <Textarea
+                  value={selectedAvatar.sample_text}
+                  onChange={(e) => setSelectedAvatar({ ...selectedAvatar, sample_text: e.target.value })}
+                  placeholder="Texte qui sera lu pour le sample audio"
+                  rows={3}
+                />
+                <Button 
+                  onClick={handleGenerateSample}
+                  disabled={generatingSample}
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                >
+                  {generatingSample ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Génération en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Générer le sample audio
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Voix ElevenLabs</Label>
+                <Select
+                  value={selectedAvatar.voice_id}
+                  onValueChange={(value) => setSelectedAvatar({ ...selectedAvatar, voice_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {voices.map((voice) => (
+                      <SelectItem key={voice.voice_id} value={voice.voice_id}>
+                        {voice.name} ({voice.gender})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -298,135 +488,20 @@ export const AvatarsManager = () => {
                     <img 
                       src={selectedAvatar.image_url} 
                       alt={selectedAvatar.name}
-                      className="h-20 w-20 rounded-full object-cover"
+                      className="h-20 w-20 rounded-lg object-cover"
                     />
                   )}
-                  <div>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleImageUpload(file);
-                      }}
-                      disabled={uploading}
-                    />
-                    {uploading && <p className="text-xs text-muted-foreground mt-1">Upload en cours...</p>}
-                  </div>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageUpload(file);
+                    }}
+                    disabled={uploading}
+                  />
+                  {uploading && <Loader2 className="h-4 w-4 animate-spin" />}
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Pitch (court)</Label>
-                <Textarea
-                  value={selectedAvatar.pitch}
-                  onChange={(e) => setSelectedAvatar({ ...selectedAvatar, pitch: e.target.value })}
-                  rows={2}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Long Pitch</Label>
-                <Textarea
-                  value={selectedAvatar.long_pitch}
-                  onChange={(e) => setSelectedAvatar({ ...selectedAvatar, long_pitch: e.target.value })}
-                  rows={4}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Tone par défaut</Label>
-                  <Select
-                    value={selectedAvatar.default_tone}
-                    onValueChange={(value) => setSelectedAvatar({ ...selectedAvatar, default_tone: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="no-bs">No-BS</SelectItem>
-                      <SelectItem value="professionalismple">Professional</SelectItem>
-                      <SelectItem value="casual">Casual</SelectItem>
-                      <SelectItem value="energetic">Énergique</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Voix ElevenLabs</Label>
-                  <Select
-                    value={selectedAvatar.voice_reco}
-                    onValueChange={(value) => setSelectedAvatar({ ...selectedAvatar, voice_reco: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {voices.map((voice) => (
-                        <SelectItem key={voice.voice_id} value={voice.voice_id}>
-                          <div className="flex items-center justify-between w-full gap-2">
-                            <span>{voice.name}</span>
-                            {voice.gender && (
-                              <span className="text-xs text-muted-foreground">
-                                ({voice.gender})
-                              </span>
-                            )}
-                            {voice.preview_url && (
-                              <Volume2 
-                                className="h-3 w-3 text-primary cursor-pointer" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const audio = new Audio(voice.preview_url!);
-                                  audio.play();
-                                }}
-                              />
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedAvatar.voice_reco && voices.find(v => v.voice_id === selectedAvatar.voice_reco)?.description && (
-                    <p className="text-xs text-muted-foreground">
-                      {voices.find(v => v.voice_id === selectedAvatar.voice_reco)?.description}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Skills (séparées par des virgules)</Label>
-                <Input
-                  value={selectedAvatar.skills.join(', ')}
-                  onChange={(e) => setSelectedAvatar({ 
-                    ...selectedAvatar, 
-                    skills: e.target.value.split(',').map(s => s.trim()) 
-                  })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Best For (séparées par des virgules)</Label>
-                <Input
-                  value={selectedAvatar.best_for.join(', ')}
-                  onChange={(e) => setSelectedAvatar({ 
-                    ...selectedAvatar, 
-                    best_for: e.target.value.split(',').map(s => s.trim()) 
-                  })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Example Actions (séparées par des virgules)</Label>
-                <Textarea
-                  value={selectedAvatar.example_actions.join(', ')}
-                  onChange={(e) => setSelectedAvatar({ 
-                    ...selectedAvatar, 
-                    example_actions: e.target.value.split(',').map(s => s.trim()) 
-                  })}
-                  rows={3}
-                />
               </div>
             </div>
           )}
@@ -436,7 +511,7 @@ export const AvatarsManager = () => {
               Annuler
             </Button>
             <Button onClick={handleSave}>
-              Sauvegarder
+              Enregistrer
             </Button>
           </DialogFooter>
         </DialogContent>

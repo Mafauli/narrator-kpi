@@ -589,8 +589,8 @@ const Onboarding = () => {
 
       const { error } = await supabase.from("preferences").update({
         avatar_id: selectedAvatar.id,
-        voice_id: selectedVoice || selectedAvatar.voice_reco,
-        avatar_sectors: selectedAvatar.best_for
+        voice_id: selectedVoice || selectedAvatar.voice_id,
+        avatar_sectors: []
       }).eq("user_id", user.id);
 
       if (error) throw error;
@@ -861,8 +861,6 @@ const Onboarding = () => {
                 {/* Avatar Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {avatars
-                    .filter(avatar => avatarSectorFilter === "all" || avatar.best_for.includes(avatarSectorFilter))
-                    .filter(avatar => avatarToneFilter === "all" || avatar.default_tone === avatarToneFilter)
                     .map((avatar) => (
                       <Card 
                         key={avatar.id} 
@@ -875,7 +873,7 @@ const Onboarding = () => {
                           
                           // Sélectionner l'avatar
                           setSelectedAvatar(avatar);
-                          setSelectedVoice(avatar.voice_reco);
+                          setSelectedVoice(avatar.voice_id);
                         }}
                       >
                         <CardContent className="p-5 space-y-4">
@@ -890,13 +888,9 @@ const Onboarding = () => {
                             <h3 className="font-semibold text-base">{avatar.name}</h3>
                             <p className="text-sm text-muted-foreground">{avatar.role}</p>
                           </div>
-                          <p className="text-sm line-clamp-2 min-h-[2.5rem]">{avatar.pitch}</p>
-                          <div className="flex flex-wrap gap-1 min-h-[28px]">
-                            {avatar.skills.slice(0, 3).map((skill: string, i: number) => (
-                              <Badge key={i} variant="secondary" className="text-xs">
-                                {skill}
-                              </Badge>
-                            ))}
+                          <p className="text-sm line-clamp-2 min-h-[2.5rem]">{avatar.promise}</p>
+                          <div className="text-xs text-muted-foreground">
+                            {avatar.personality}
                           </div>
                           <div className="flex flex-col sm:flex-row gap-2">
                             <Button 
@@ -920,17 +914,30 @@ const Onboarding = () => {
                                     audioRef.current = null;
                                   }
 
-                                  // Use voice_reco from avatar directly
-                                  if (!avatar.voice_reco) {
+                                  // Use sample_audio_url if available, otherwise use voice preview
+                                  if (avatar.sample_audio_url) {
+                                    const audio = new Audio(avatar.sample_audio_url);
+                                    audioRef.current = audio;
+                                    setPlayingAvatarId(avatar.id);
+                                    
+                                    audio.onended = () => {
+                                      setPlayingAvatarId(null);
+                                      audioRef.current = null;
+                                    };
+                                    
+                                    await audio.play();
+                                    return;
+                                  }
+
+                                  if (!avatar.voice_id) {
                                     toast.error("Aucune voix assignée pour cet avatar");
                                     return;
                                   }
 
-                                  // Fetch voice details using voice_reco
                                   const { data: voice, error } = await supabase
                                     .from('elevenlabs_voices')
                                     .select('preview_url')
-                                    .eq('voice_id', avatar.voice_reco)
+                                    .eq('voice_id', avatar.voice_id)
                                     .single();
                                   
                                   if (error || !voice?.preview_url) {
@@ -973,9 +980,9 @@ const Onboarding = () => {
                               size="sm" 
                               className="flex-1 w-full bg-accent hover:bg-accent/90"
                               onClick={(e) => {
-                                e.stopPropagation(); // Empêcher la sélection de la Card
+                                e.stopPropagation();
                                 setSelectedAvatar(avatar);
-                                setSelectedVoice(avatar.voice_reco);
+                                setSelectedVoice(avatar.voice_id);
                               }}
                             >
                               {selectedAvatar?.id === avatar.id ? '✓ Sélectionné' : 'Choisir'}
@@ -991,17 +998,14 @@ const Onboarding = () => {
                   <Card className="bg-accent/5 border-accent/20">
                     <CardContent className="p-6 space-y-6">
                       <div>
-                        <h3 className="font-semibold text-lg mb-2">Détails de {selectedAvatar.name}</h3>
-                        <p className="text-sm text-muted-foreground">{selectedAvatar.long_pitch}</p>
+                        <h3 className="font-semibold text-lg mb-2">{selectedAvatar.name}</h3>
+                        <p className="text-sm text-muted-foreground mb-2">{selectedAvatar.role}</p>
+                        <p className="text-sm">{selectedAvatar.promise}</p>
                       </div>
                       
                       <div>
-                        <h4 className="text-sm font-medium mb-2">Compétences clés</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedAvatar.skills.map((skill: string, i: number) => (
-                            <Badge key={i} variant="outline">{skill}</Badge>
-                          ))}
-                        </div>
+                        <h4 className="text-sm font-medium mb-2">Domaines</h4>
+                        <p className="text-sm text-muted-foreground">{selectedAvatar.domains}</p>
                       </div>
                       
                       <div>

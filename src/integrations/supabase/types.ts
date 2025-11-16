@@ -91,49 +91,52 @@ export type Database = {
       }
       avatars: {
         Row: {
-          best_for: string[]
+          action_types: string
           created_at: string
-          default_tone: string
-          example_actions: string[]
+          domains: string
           id: string
-          image_prompt: string
+          ideal_for: string
           image_url: string | null
-          long_pitch: string
           name: string
-          pitch: string
+          personality: string
+          promise: string
           role: string
-          skills: string[]
-          voice_reco: string
+          sample_audio_url: string | null
+          sample_text: string
+          voice_id: string
+          voice_tone: string
         }
         Insert: {
-          best_for: string[]
+          action_types?: string
           created_at?: string
-          default_tone: string
-          example_actions: string[]
+          domains?: string
           id: string
-          image_prompt: string
+          ideal_for?: string
           image_url?: string | null
-          long_pitch: string
           name: string
-          pitch: string
-          role: string
-          skills: string[]
-          voice_reco: string
+          personality?: string
+          promise?: string
+          role?: string
+          sample_audio_url?: string | null
+          sample_text?: string
+          voice_id: string
+          voice_tone?: string
         }
         Update: {
-          best_for?: string[]
+          action_types?: string
           created_at?: string
-          default_tone?: string
-          example_actions?: string[]
+          domains?: string
           id?: string
-          image_prompt?: string
+          ideal_for?: string
           image_url?: string | null
-          long_pitch?: string
           name?: string
-          pitch?: string
+          personality?: string
+          promise?: string
           role?: string
-          skills?: string[]
-          voice_reco?: string
+          sample_audio_url?: string | null
+          sample_text?: string
+          voice_id?: string
+          voice_tone?: string
         }
         Relationships: []
       }

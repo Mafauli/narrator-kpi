@@ -18,6 +18,12 @@ verify_jwt = true
 [functions.whatsapp-webhook]
 verify_jwt = false
 
+[functions.generate-avatar-sample]
+verify_jwt = false
+
+[functions.initialize-new-avatars]
+verify_jwt = false
+
 [functions.sync-elevenlabs-voices]
 verify_jwt = true
 
@@ -52,4 +58,10 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.process-scheduled-briefs]
+verify_jwt = false
+
+[functions.generate-avatar-sample]
+verify_jwt = false
+
+[functions.initialize-new-avatars]
 verify_jwt = false
