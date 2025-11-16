@@ -864,9 +864,20 @@ const Onboarding = () => {
                     .filter(avatar => avatarSectorFilter === "all" || avatar.best_for.includes(avatarSectorFilter))
                     .filter(avatar => avatarToneFilter === "all" || avatar.default_tone === avatarToneFilter)
                     .map((avatar) => (
-                      <Card key={avatar.id} className={`cursor-pointer transition-all hover:shadow-lg ${
-                        selectedAvatar?.id === avatar.id ? 'ring-2 ring-accent shadow-lg' : ''
-                      }`}>
+                      <Card 
+                        key={avatar.id} 
+                        className={`cursor-pointer transition-all hover:shadow-lg ${
+                          selectedAvatar?.id === avatar.id ? 'ring-2 ring-accent shadow-lg' : ''
+                        }`}
+                        onClick={() => {
+                          // Ne rien faire si déjà sélectionné
+                          if (selectedAvatar?.id === avatar.id) return;
+                          
+                          // Sélectionner l'avatar
+                          setSelectedAvatar(avatar);
+                          setSelectedVoice(avatar.voice_reco);
+                        }}
+                      >
                         <CardContent className="p-5 space-y-4">
                           <div className="aspect-square rounded-lg overflow-hidden bg-muted">
                             <img 
@@ -892,7 +903,8 @@ const Onboarding = () => {
                               variant="outline" 
                               size="sm" 
                               className="flex-1 w-full"
-                              onClick={async () => {
+                              onClick={async (e) => {
+                                e.stopPropagation(); // Empêcher la sélection de la Card
                                 try {
                                   // If currently playing this avatar, stop it
                                   if (playingAvatarId === avatar.id) {
@@ -960,7 +972,8 @@ const Onboarding = () => {
                             <Button 
                               size="sm" 
                               className="flex-1 w-full bg-accent hover:bg-accent/90"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation(); // Empêcher la sélection de la Card
                                 setSelectedAvatar(avatar);
                                 setSelectedVoice(avatar.voice_reco);
                               }}
