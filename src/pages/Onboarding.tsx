@@ -78,7 +78,7 @@ const Onboarding = () => {
     const stepParam = searchParams.get('step');
     if (stepParam) {
       const stepNumber = parseInt(stepParam);
-      if (stepNumber >= 1 && stepNumber <= 6) {
+      if (stepNumber >= 1 && stepNumber <= 5) {
         setStep(stepNumber);
         // If going to step 2 or later, ensure Airtable is connected
         if (stepNumber >= 2) {
@@ -461,11 +461,11 @@ const Onboarding = () => {
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center gap-4 mb-8">
-      {[1, 2, 3, 4, 5, 6].map((i) => (
+      {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} className="flex items-center gap-2">
           <button
             onClick={() => setStep(i)}
-            disabled={!isOnboardingComplete && i > step && step < 6}
+            disabled={!isOnboardingComplete && i > step && step < 5}
             className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all ${
               step >= i || isOnboardingComplete
                 ? "bg-accent text-accent-foreground hover:bg-accent/90 cursor-pointer" 
@@ -475,7 +475,7 @@ const Onboarding = () => {
           >
             {i}
           </button>
-          {i < 6 && <div className={`w-12 h-1 ${step > i || isOnboardingComplete ? "bg-accent" : "bg-muted"}`} />}
+          {i < 5 && <div className={`w-12 h-1 ${step > i || isOnboardingComplete ? "bg-accent" : "bg-muted"}`} />}
         </div>
       ))}
     </div>
@@ -498,7 +498,7 @@ const Onboarding = () => {
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">Configuration initiale</h1>
             <p className="text-muted-foreground">
-              {step <= 5 ? "5 étapes rapides pour recevoir ton premier brief" : "Configure tes envois automatiques"}
+              5 étapes rapides pour recevoir ton premier brief
             </p>
           </div>
 
