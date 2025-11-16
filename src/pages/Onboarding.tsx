@@ -12,8 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { Play, Database, Settings, Sparkles, HelpCircle, ChevronDown, User, Volume2, RefreshCw, Calendar, Pause } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useElevenLabsVoices } from "@/hooks/useElevenLabsVoices";
-import { VoicePreviewCard } from "@/components/VoicePreviewCard";
 import { AIPreferencesStep } from "@/components/onboarding/AIPreferencesStep";
 import { SchedulingStep } from "@/components/onboarding/SchedulingStep";
 import { PhoneInput } from "@/components/PhoneInput";
@@ -133,11 +131,6 @@ const Onboarding = () => {
         setNorthStar(prefsData.north_star || 'MRR');
         setGoalValue(prefsData.goal_value?.toString() || '10');
         setTone(prefsData.tone || 'no-bs');
-        
-        // Load avatar if exists
-        if (prefsData.avatar_id) {
-          setSelectedVoice(prefsData.voice_id || '');
-        }
       }
 
       // Détecter si l'onboarding est complet
@@ -307,7 +300,6 @@ const Onboarding = () => {
   // Step 4: Avatar selection
   const [avatars, setAvatars] = useState<any[]>([]);
   const [selectedAvatar, setSelectedAvatar] = useState<any>(null);
-  const [selectedVoice, setSelectedVoice] = useState<string>("");
 
   // Step 5: Test brief
   const [firstName, setFirstName] = useState("");
@@ -322,9 +314,6 @@ const Onboarding = () => {
   const [scheduleHour, setScheduleHour] = useState(8);
   const [scheduleMinute, setScheduleMinute] = useState(0);
   const [scheduleTimezone, setScheduleTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
-
-  // ElevenLabs voices
-  const { voices, loading: voicesLoading, syncing, syncVoices } = useElevenLabsVoices();
 
   const handleConnectAirtable = async () => {
     setIsLoading(true);
@@ -587,7 +576,7 @@ const Onboarding = () => {
 
       const { error } = await supabase.from("preferences").update({
         avatar_id: selectedAvatar.id,
-        voice_id: selectedVoice || selectedAvatar.voice_id,
+        voice_id: selectedAvatar.voice_id,
         avatar_sectors: []
       }).eq("user_id", user.id);
 
@@ -843,7 +832,6 @@ const Onboarding = () => {
                           
                           // Sélectionner l'avatar
                           setSelectedAvatar(avatar);
-                          setSelectedVoice(avatar.voice_id);
                         }}
                       >
                         <CardContent className="p-5 space-y-4">
@@ -952,7 +940,6 @@ const Onboarding = () => {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedAvatar(avatar);
-                                setSelectedVoice(avatar.voice_id);
                               }}
                             >
                               {selectedAvatar?.id === avatar.id ? '✓ Sélectionné' : 'Choisir'}
@@ -986,59 +973,6 @@ const Onboarding = () => {
                       <div>
                         <h4 className="text-sm font-medium mb-2">Idéal pour</h4>
                         <p className="text-sm text-muted-foreground">{selectedAvatar.ideal_for}</p>
-                      </div>
-
-                      {/* Voice selection section */}
-                      <div className="border-t pt-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="text-sm font-medium">Choisis une voix</h4>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={syncVoices}
-                            disabled={syncing}
-                            className="h-8 gap-2"
-                          >
-                            <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
-                            {syncing ? "Sync..." : "Sync voix"}
-                          </Button>
-                        </div>
-
-                        {voicesLoading ? (
-                          <p className="text-sm text-muted-foreground">Chargement des voix...</p>
-                        ) : voices.length === 0 ? (
-                          <div className="text-center py-4">
-                            <p className="text-sm text-muted-foreground mb-3">
-                              Aucune voix disponible. Synchronise les voix depuis ElevenLabs.
-                            </p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={syncVoices}
-                              disabled={syncing}
-                            >
-                              <RefreshCw className={`h-3 w-3 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                              Synchroniser les voix
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            {voices.slice(0, 5).map((voice) => (
-                              <VoicePreviewCard
-                                key={voice.voice_id}
-                                voice={voice}
-                                isSelected={selectedVoice === voice.voice_id}
-                                onSelect={() => setSelectedVoice(voice.voice_id)}
-                                compact
-                              />
-                            ))}
-                            {voices.length > 5 && (
-                              <p className="text-xs text-muted-foreground text-center pt-2">
-                                {voices.length - 5} autres voix disponibles
-                              </p>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -1082,11 +1016,6 @@ const Onboarding = () => {
                       <div>
                         <p className="font-semibold">{selectedAvatar.name}</p>
                         <p className="text-sm text-muted-foreground">{selectedAvatar.role}</p>
-                        {selectedVoice && (
-                          <Badge variant="secondary" className="mt-1">
-                            {voices.find(v => v.voice_id === selectedVoice)?.name || "Voix personnalisée"}
-                          </Badge>
-                        )}
                       </div>
                     </div>
                   </div>
