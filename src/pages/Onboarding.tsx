@@ -997,9 +997,6 @@ const Onboarding = () => {
                   <Sparkles className="h-5 w-5" />
                   <CardTitle>Configuration terminée !</CardTitle>
                 </div>
-                <CardDescription>
-                  Tu recevras ton premier brief le {["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"][sendDay]} à {String(sendHour).padStart(2, '0')}:00
-                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {selectedAvatar && (
