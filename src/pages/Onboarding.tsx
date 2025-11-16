@@ -478,7 +478,7 @@ const Onboarding = () => {
 
       const { data: briefData, error: briefError } = await supabase.functions.invoke(
         'generate-complete-brief-stream',
-        { body: { user_id: user.id } }
+        { body: { user_id: user.id, is_onboarding: true } }
       );
 
       if (briefError) throw briefError;
