@@ -89,41 +89,6 @@ export type Database = {
         }
         Relationships: []
       }
-      avatar_voice_mapping: {
-        Row: {
-          avatar_id: string
-          created_at: string | null
-          elevenlabs_voice_id: string
-          id: string
-          is_default: boolean | null
-          voice_name: string
-        }
-        Insert: {
-          avatar_id: string
-          created_at?: string | null
-          elevenlabs_voice_id: string
-          id?: string
-          is_default?: boolean | null
-          voice_name: string
-        }
-        Update: {
-          avatar_id?: string
-          created_at?: string | null
-          elevenlabs_voice_id?: string
-          id?: string
-          is_default?: boolean | null
-          voice_name?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "avatar_voice_mapping_avatar_id_fkey"
-            columns: ["avatar_id"]
-            isOneToOne: false
-            referencedRelation: "avatars"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       avatars: {
         Row: {
           best_for: string[]
