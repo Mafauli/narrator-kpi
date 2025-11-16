@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Play, Database, Settings, Sparkles, HelpCircle, ChevronDown, User, Volume2, RefreshCw, Calendar } from "lucide-react";
+import { Play, Database, Settings, Sparkles, HelpCircle, ChevronDown, User, Volume2, RefreshCw, Calendar, Pause } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useElevenLabsVoices } from "@/hooks/useElevenLabsVoices";
@@ -46,6 +46,8 @@ const Onboarding = () => {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isOnboardingComplete, setIsOnboardingComplete] = useState(false);
+  const [playingAvatarId, setPlayingAvatarId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Step 1: Airtable connection
   const [airtableConnected, setAirtableConnected] = useState(false);
@@ -892,6 +894,20 @@ const Onboarding = () => {
                               className="flex-1 w-full"
                               onClick={async () => {
                                 try {
+                                  // If currently playing this avatar, stop it
+                                  if (playingAvatarId === avatar.id) {
+                                    audioRef.current?.pause();
+                                    audioRef.current = null;
+                                    setPlayingAvatarId(null);
+                                    return;
+                                  }
+
+                                  // Stop any currently playing audio
+                                  if (audioRef.current) {
+                                    audioRef.current.pause();
+                                    audioRef.current = null;
+                                  }
+
                                   // Fetch the voice mapping for this avatar
                                   const { data: mapping } = await supabase
                                     .from('avatar_voice_mapping')
@@ -918,15 +934,33 @@ const Onboarding = () => {
 
                                   // Play the preview
                                   const audio = new Audio(voice.preview_url);
-                                  audio.play();
+                                  audio.onended = () => setPlayingAvatarId(null);
+                                  audio.onerror = () => {
+                                    setPlayingAvatarId(null);
+                                    toast.error("Erreur lors de la lecture");
+                                  };
+                                  
+                                  audioRef.current = audio;
+                                  await audio.play();
+                                  setPlayingAvatarId(avatar.id);
                                 } catch (error) {
                                   console.error('Error playing preview:', error);
                                   toast.error("Erreur lors de la lecture");
+                                  setPlayingAvatarId(null);
                                 }
                               }}
                             >
-                              <Volume2 className="h-3 w-3 mr-1" />
-                              Aperçu
+                              {playingAvatarId === avatar.id ? (
+                                <>
+                                  <Pause className="h-3 w-3 mr-1" />
+                                  Stop
+                                </>
+                              ) : (
+                                <>
+                                  <Volume2 className="h-3 w-3 mr-1" />
+                                  Aperçu
+                                </>
+                              )}
                             </Button>
                             <Button 
                               size="sm" 
