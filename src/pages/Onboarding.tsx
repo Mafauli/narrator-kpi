@@ -307,8 +307,6 @@ const Onboarding = () => {
   // Step 4: Avatar selection
   const [avatars, setAvatars] = useState<any[]>([]);
   const [selectedAvatar, setSelectedAvatar] = useState<any>(null);
-  const [avatarSectorFilter, setAvatarSectorFilter] = useState<string>("all");
-  const [avatarToneFilter, setAvatarToneFilter] = useState<string>("all");
   const [selectedVoice, setSelectedVoice] = useState<string>("");
 
   // Step 5: Test brief
@@ -830,34 +828,6 @@ const Onboarding = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Filters */}
-                <div className="flex gap-4">
-                  <Select value={avatarSectorFilter} onValueChange={setAvatarSectorFilter}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Tous les secteurs" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tous les secteurs</SelectItem>
-                      <SelectItem value="saas">SaaS</SelectItem>
-                      <SelectItem value="ecom">E-commerce</SelectItem>
-                      <SelectItem value="services">Services</SelectItem>
-                      <SelectItem value="agences">Agence</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={avatarToneFilter} onValueChange={setAvatarToneFilter}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Tous les tons" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tous les tons</SelectItem>
-                      <SelectItem value="sobre">Sobre</SelectItem>
-                      <SelectItem value="coach">Coach</SelectItem>
-                      <SelectItem value="no-bs">No-BS</SelectItem>
-                      <SelectItem value="energique">Énergique</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {/* Avatar Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {avatars
@@ -1009,15 +979,13 @@ const Onboarding = () => {
                       </div>
                       
                       <div>
-                        <h4 className="text-sm font-medium mb-2">Exemples d'actions</h4>
-                        <ul className="space-y-1 text-sm">
-                          {selectedAvatar.example_actions.map((action: string, i: number) => (
-                            <li key={i} className="flex items-start gap-2">
-                              <span className="text-accent mt-1">•</span>
-                              <span>{action}</span>
-                            </li>
-                          ))}
-                        </ul>
+                        <h4 className="text-sm font-medium mb-2">Types d'actions</h4>
+                        <p className="text-sm text-muted-foreground">{selectedAvatar.action_types}</p>
+                      </div>
+                      
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Idéal pour</h4>
+                        <p className="text-sm text-muted-foreground">{selectedAvatar.ideal_for}</p>
                       </div>
 
                       {/* Voice selection section */}
