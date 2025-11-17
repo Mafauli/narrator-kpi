@@ -138,10 +138,13 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
 
             if (error) throw error;
 
+            // Extract records from the response structure
+            const records = data?.views?.[0]?.records || [];
+            
             return {
               view_name: view.viewName,
               table_name: view.tableName,
-              rows: data?.records || []
+              rows: records
             };
           } catch (err) {
             console.error(`Error fetching view ${view.viewName}:`, err);
@@ -155,12 +158,14 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
       // Build views schema
       const viewsSchema = selectedViews.slice(0, 3).map((view, idx) => {
         const sample = samples[idx];
-        const fields = sample?.rows?.[0] 
-          ? Object.keys(sample.rows[0]).map(key => ({
-              name: key,
-              type: typeof sample.rows[0][key]
-            }))
-          : [];
+        // Airtable records have structure: { id, createdTime, fields: {...} }
+        const firstRecord = sample?.rows?.[0];
+        const recordFields = firstRecord?.fields || {};
+        
+        const fields = Object.keys(recordFields).map(key => ({
+          name: key,
+          type: typeof recordFields[key]
+        }));
         
         return {
           view_name: view.viewName,
@@ -171,6 +176,15 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
       });
 
       console.log('[AIPreferencesStep] Calling infer phase with', viewsSchema.length, 'views');
+      console.log('[AIPreferencesStep] viewsSchema:', JSON.stringify(viewsSchema, null, 2));
+      console.log('[AIPreferencesStep] samples preview:', JSON.stringify(samples).substring(0, 500));
+
+      // Transform samples to extract only the fields from Airtable records
+      const transformedSamples = samples.map(sample => ({
+        view_name: sample.view_name,
+        table_name: sample.table_name,
+        rows: sample.rows.map((record: any) => record.fields || {})
+      }));
 
       // Call infer phase
       const { data: inferData, error: inferError } = await supabase.functions.invoke('onboarding-ai-infer', {
@@ -179,7 +193,7 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
           lang: 'fr',
           tz: 'Europe/Paris',
           views_schema: viewsSchema,
-          samples
+          samples: transformedSamples
         }
       });
 
