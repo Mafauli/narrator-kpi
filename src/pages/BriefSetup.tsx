@@ -98,16 +98,83 @@ const BriefSetup = () => {
 
       setGenerationStep("🤖 Analyse de vos données (~22s)...");
 
-      const { data: briefData, error: briefError } = await supabase.functions.invoke(
-        'generate-complete-brief-stream',
-        { body: { user_id: user.id, is_onboarding: true } }
-      );
+      // Call the streaming function via fetch
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      const eventSourceUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-complete-brief-stream`;
+      
+      let briefId: string | null = null;
+      
+      await new Promise<void>((resolve, reject) => {
+        fetch(eventSourceUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ user_id: user.id, is_onboarding: true })
+        }).then(async response => {
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          
+          if (!reader) {
+            throw new Error("No response body");
+          }
 
-      if (briefError) {
-        console.error("Brief generation error:", briefError);
-        throw new Error(briefError.message || "Erreur lors de la génération du brief");
-      }
-      if (!briefData?.brief_id) throw new Error("Aucun brief_id retourné");
+          let buffer = '';
+          
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
+            
+            let currentEvent = '';
+            let currentData = '';
+            
+            for (const line of lines) {
+              if (line.startsWith('event: ')) {
+                currentEvent = line.substring(7).trim();
+              } else if (line.startsWith('data: ')) {
+                currentData = line.substring(6);
+              } else if (line.trim() === '' && currentEvent && currentData) {
+                // Complete event received
+                try {
+                  if (currentEvent === 'log') {
+                    const logData = JSON.parse(currentData);
+                    setGenerationStep(logData.message);
+                  } else if (currentEvent === 'result') {
+                    const resultData = JSON.parse(currentData);
+                    briefId = resultData.brief_id;
+                  } else if (currentEvent === 'error') {
+                    const errorData = JSON.parse(currentData);
+                    reject(new Error(errorData.error));
+                    return;
+                  } else if (currentEvent === 'done') {
+                    resolve();
+                    return;
+                  }
+                } catch (e) {
+                  console.error(`Failed to parse ${currentEvent}:`, e);
+                }
+                currentEvent = '';
+                currentData = '';
+              }
+            }
+          }
+          
+          resolve(); // Stream ended
+        }).catch(reject);
+      });
+
+      if (!briefId) throw new Error("Aucun brief_id retourné");
 
       if (messageInterval) clearInterval(messageInterval);
       setGenerationStep("📲 Envoi de ton brief sur WhatsApp...");
@@ -116,7 +183,7 @@ const BriefSetup = () => {
         'send-whatsapp-brief',
         { 
           body: { 
-            brief_id: briefData.brief_id,
+            brief_id: briefId,
             phone_number: whatsappPhone
           }
         }
