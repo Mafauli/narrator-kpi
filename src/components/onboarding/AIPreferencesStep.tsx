@@ -104,7 +104,12 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
         
         setSectorFinal(ctx.sector_final || "");
         setNorthStarMetric(ctx.north_star_metric || "");
-        setKpisFinal(ctx.kpis_final || []);
+        // Extract just the KPI names from the objects (in case they're objects)
+        const kpiData = ctx.kpis_final || [];
+        const kpiNames = kpiData.map((kpi: any) => 
+          typeof kpi === 'string' ? kpi : (kpi.name || kpi)
+        );
+        setKpisFinal(kpiNames);
         setPreferredTone(ctx.preferred_tone || "no-bs");
         setLanguage(ctx.language || "fr");
         setTimezone(ctx.timezone || "Europe/Paris");
@@ -220,7 +225,7 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
       // Extract just the KPI names from the objects
       const kpiData = ctx.kpis_final || inferData.suggested_kpis || [];
       const kpiNames = kpiData.map((kpi: any) => 
-        typeof kpi === 'string' ? kpi : kpi.name
+        typeof kpi === 'string' ? kpi : (kpi.name || kpi)
       );
       setKpisFinal(kpiNames);
       setPreferredTone(ctx.preferred_tone || "no-bs");
@@ -288,7 +293,7 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
       setNorthStarMetric(ctx.north_star_metric || "");
       // Extract just the KPI names from the objects
       const kpiNames = (ctx.kpis_final || []).map((kpi: any) => 
-        typeof kpi === 'string' ? kpi : kpi.name
+        typeof kpi === 'string' ? kpi : (kpi.name || kpi)
       );
       setKpisFinal(kpiNames);
       setPreferredTone(ctx.preferred_tone || "no-bs");
