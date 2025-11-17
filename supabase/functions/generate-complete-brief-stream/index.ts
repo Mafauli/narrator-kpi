@@ -184,6 +184,7 @@ serve(async (req) => {
 
         const airtableResponse = await supabaseClient.functions.invoke("fetch-airtable-data", {
           body: {},
+          headers: { Authorization: authHeader } // Forward user auth
         });
 
         if (airtableResponse.error) {

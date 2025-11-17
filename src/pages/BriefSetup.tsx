@@ -51,6 +51,7 @@ const BriefSetup = () => {
   }, []);
 
   const generateBrief = async () => {
+    let messageInterval: NodeJS.Timeout | null = null;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non connecté");
@@ -63,7 +64,7 @@ const BriefSetup = () => {
       ];
 
       let currentMessageIndex = 0;
-      const messageInterval = setInterval(() => {
+      messageInterval = setInterval(() => {
         currentMessageIndex = (currentMessageIndex + 1) % messages.length;
         setGenerationStep(messages[currentMessageIndex]);
       }, 4000);
@@ -102,10 +103,13 @@ const BriefSetup = () => {
         { body: { user_id: user.id, is_onboarding: true } }
       );
 
-      if (briefError) throw briefError;
-      if (!briefData?.brief_id) throw new Error("Erreur lors de la génération du brief");
+      if (briefError) {
+        console.error("Brief generation error:", briefError);
+        throw new Error(briefError.message || "Erreur lors de la génération du brief");
+      }
+      if (!briefData?.brief_id) throw new Error("Aucun brief_id retourné");
 
-      clearInterval(messageInterval);
+      if (messageInterval) clearInterval(messageInterval);
       setGenerationStep("📲 Envoi de ton brief sur WhatsApp...");
 
       const { error: sendError } = await supabase.functions.invoke(
@@ -118,7 +122,10 @@ const BriefSetup = () => {
         }
       );
 
-      if (sendError) throw sendError;
+      if (sendError) {
+        console.error("WhatsApp send error:", sendError);
+        throw new Error(sendError.message || "Erreur lors de l'envoi sur WhatsApp");
+      }
 
       setGenerationStep("✅ Brief envoyé avec succès !");
       toast({
@@ -133,6 +140,10 @@ const BriefSetup = () => {
       }, 2000);
     } catch (error: any) {
       console.error("Error generating brief:", error);
+      
+      // Cleanup interval
+      if (messageInterval) clearInterval(messageInterval);
+      
       toast({
         title: "Erreur",
         description: error.message || "Erreur lors de la génération du brief",
