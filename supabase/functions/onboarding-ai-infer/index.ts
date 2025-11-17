@@ -12,7 +12,8 @@ const inferSchema = z.object({
   lang: z.string().default('fr'),
   tz: z.string().default('Europe/Paris'),
   views_schema: z.array(z.any()),
-  samples: z.array(z.any())
+  samples: z.array(z.any()),
+  force_refresh: z.boolean().optional()
 });
 
 const refineSchema = z.object({
@@ -28,9 +29,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY');
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+// Helper to create a hash from data for cache key
+const createDataHash = async (data: any): Promise<string> => {
+  const encoder = new TextEncoder();
+  const dataString = JSON.stringify(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(dataString));
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
+};
 
 // Fetch system prompt from database
 const getSystemPrompt = async (supabase: any): Promise<string> => {
@@ -76,6 +86,9 @@ serve(async (req) => {
 
     const requestBody = await req.json();
     
+    // Parallelize: start fetching system prompt early
+    const systemPromptPromise = getSystemPrompt(supabase);
+
     // Validate request based on phase
     let phase: string;
     let lang: string;
@@ -84,6 +97,7 @@ serve(async (req) => {
     let samples: any;
     let prior_inference: any;
     let user_reply_raw: string | undefined;
+    let force_refresh = false;
     
     try {
       if (requestBody.phase === 'infer') {
@@ -93,6 +107,7 @@ serve(async (req) => {
         tz = validated.tz;
         views_schema = validated.views_schema;
         samples = validated.samples;
+        force_refresh = validated.force_refresh || false;
       } else if (requestBody.phase === 'refine') {
         const validated = refineSchema.parse(requestBody);
         phase = validated.phase;
@@ -112,12 +127,14 @@ serve(async (req) => {
 
     logger.info("Onboarding AI inference started", { phase, userId: user.id });
 
-    // Fetch system prompt from database
-    const systemPrompt = await getSystemPrompt(supabase);
+    // Await the system prompt that was fetched in parallel
+    const systemPrompt = await systemPromptPromise;
     logger.info("System prompt fetched", { promptLength: systemPrompt.length });
 
-    // Check cache for infer phase
-    if (phase === 'infer') {
+    // Check cache for infer phase (hash-based + timestamp)
+    if (phase === 'infer' && !force_refresh) {
+      const dataHash = await createDataHash({ views_schema, samples });
+      
       const { data: cachedOnboarding } = await supabase
         .from('onboarding')
         .select('infer_json, updated_at')
@@ -126,10 +143,16 @@ serve(async (req) => {
 
       if (cachedOnboarding?.infer_json) {
         const cacheAge = Date.now() - new Date(cachedOnboarding.updated_at).getTime();
-        const maxCacheAge = 72 * 60 * 60 * 1000; // 72 hours
+        const maxCacheAge = 24 * 60 * 60 * 1000; // 24 hours (reduced from 72)
+        
+        // Check if cached data matches current data hash
+        const cachedHash = cachedOnboarding.infer_json?.data_hash;
 
-        if (cacheAge < maxCacheAge) {
-          logger.info("Returning cached infer_json", { cacheAgeHours: (cacheAge / (60 * 60 * 1000)).toFixed(1) });
+        if (cacheAge < maxCacheAge && cachedHash === dataHash) {
+          logger.info("Returning cached infer_json", { 
+            cacheAgeHours: (cacheAge / (60 * 60 * 1000)).toFixed(1),
+            dataHash 
+          });
           return new Response(JSON.stringify(cachedOnboarding.infer_json), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
@@ -175,9 +198,9 @@ serve(async (req) => {
       });
     }
 
-    // Log the complete request to DeepSeek
-    const deepseekRequestBody = {
-      model: 'deepseek-chat',
+    // Log the complete request to Lovable AI
+    const aiRequestBody = {
+      model: 'google/gemini-2.5-flash', // Fast and efficient model
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: JSON.stringify(userMessage) }
@@ -186,50 +209,47 @@ serve(async (req) => {
       temperature: 0.7
     };
     
-    logger.info("Sending request to DeepSeek", {
-      model: 'deepseek-chat',
+    logger.info("Sending request to Lovable AI", {
+      model: 'google/gemini-2.5-flash',
       systemPromptLength: systemPrompt.length,
-      userMessageLength: JSON.stringify(userMessage).length,
-      fullUserMessage: JSON.stringify(userMessage).substring(0, 1000) // First 1000 chars
+      userMessageLength: JSON.stringify(userMessage).length
     });
 
-    // Call DeepSeek
-    const deepseekResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    // Call Lovable AI Gateway (much faster than DeepSeek)
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(deepseekRequestBody),
+      body: JSON.stringify(aiRequestBody),
     });
 
-    if (!deepseekResponse.ok) {
-      logger.error("DeepSeek API error", { 
-        status: deepseekResponse.status,
+    if (!aiResponse.ok) {
+      logger.error("Lovable AI API error", { 
+        status: aiResponse.status,
         phase
       });
       
       // Provide specific error messages based on status code
-      if (deepseekResponse.status === 401 || deepseekResponse.status === 403) {
-        throw new Error('Clé API DeepSeek invalide ou expirée. Contacte l\'administrateur.');
-      } else if (deepseekResponse.status === 404) {
-        throw new Error('Service DeepSeek temporairement indisponible. Réessaye dans quelques instants.');
-      } else if (deepseekResponse.status === 429) {
-        throw new Error('Trop de requêtes DeepSeek. Patiente quelques secondes.');
+      if (aiResponse.status === 401 || aiResponse.status === 403) {
+        throw new Error('Configuration AI incorrecte. Contacte l\'administrateur.');
+      } else if (aiResponse.status === 429) {
+        throw new Error('Trop de requêtes AI. Patiente quelques secondes.');
+      } else if (aiResponse.status === 402) {
+        throw new Error('Crédits AI épuisés. Contacte l\'administrateur.');
       }
       
-      throw new Error(`Erreur DeepSeek (${deepseekResponse.status}). Réessaye plus tard.`);
+      throw new Error(`Erreur AI (${aiResponse.status}). Réessaye plus tard.`);
     }
 
-    const deepseekData = await deepseekResponse.json();
-    const responseText = deepseekData.choices[0].message.content;
+    const aiData = await aiResponse.json();
+    const responseText = aiData.choices[0].message.content;
     
-    logger.info("DeepSeek response received", { 
+    logger.info("Lovable AI response received", { 
       phase, 
       responseLength: responseText.length,
-      tokensUsed: deepseekData.usage?.total_tokens || 0,
-      responsePreview: responseText.substring(0, 500), // First 500 chars
-      fullResponse: responseText // Complete response for debugging
+      tokensUsed: aiData.usage?.total_tokens || 0
     });
 
     // Parse JSON response
@@ -237,14 +257,18 @@ serve(async (req) => {
     try {
       parsedResponse = JSON.parse(responseText);
     } catch (e) {
-      logger.error("Failed to parse DeepSeek JSON response", { 
+      logger.error("Failed to parse AI JSON response", { 
         error: e instanceof Error ? e.message : "Unknown error" 
       });
-      throw new Error('Invalid JSON response from DeepSeek');
+      throw new Error('Invalid JSON response from AI');
     }
 
     // Save to onboarding table
     if (phase === 'infer') {
+      // Add data hash to cached response
+      const dataHash = await createDataHash({ views_schema, samples });
+      parsedResponse.data_hash = dataHash;
+      
       const { error: insertError } = await supabase
         .from('onboarding')
         .upsert({
