@@ -120,24 +120,8 @@ serve(async (req) => {
             <p>Redirection en cours...</p>
           </div>
           <script>
-            // Try to notify parent window first
-            // Always redirect to close the OAuth popup
-            const redirectUrl = 'https://preview--insights-audio.lovable.app/app/onboarding?step=2&airtable_connected=true';
-            
-            if (window.opener && !window.opener.closed) {
-              try {
-                window.opener.postMessage({ type: 'airtable-oauth-success' }, '*');
-                setTimeout(() => {
-                  window.opener.location.href = redirectUrl;
-                  window.close();
-                }, 500);
-              } catch (e) {
-                console.error('Failed to notify parent:', e);
-                window.location.href = redirectUrl;
-              }
-            } else {
-              window.location.href = redirectUrl;
-            }
+            // Redirect using relative URL - works on any domain (preview, production, custom)
+            window.location.href = '/app/onboarding?step=2&airtable_connected=true';
           </script>
         </body>
       </html>
