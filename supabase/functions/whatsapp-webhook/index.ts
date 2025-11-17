@@ -103,9 +103,9 @@ serve(async (req) => {
           
           if (statuses && statuses.length > 0) {
             for (const status of statuses) {
-              // Validate message ID format (should be alphanumeric)
+              // Validate message ID format (should be alphanumeric with dots, underscores, and dashes)
               const messageId = status.id;
-              if (!messageId || typeof messageId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(messageId)) {
+              if (!messageId || typeof messageId !== 'string' || !/^[a-zA-Z0-9._-]+$/.test(messageId)) {
                 logger.warn('Invalid message ID format', { message_id: messageId, ip: clientIp });
                 continue;
               }
