@@ -210,7 +210,12 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
       const ctx = inferData.context || {};
       setSectorFinal(ctx.sector_final || inferData.sector_guess || "");
       setNorthStarMetric(ctx.north_star_metric || "");
-      setKpisFinal(ctx.kpis_final || inferData.suggested_kpis || []);
+      // Extract just the KPI names from the objects
+      const kpiData = ctx.kpis_final || inferData.suggested_kpis || [];
+      const kpiNames = kpiData.map((kpi: any) => 
+        typeof kpi === 'string' ? kpi : kpi.name
+      );
+      setKpisFinal(kpiNames);
       setPreferredTone(ctx.preferred_tone || "no-bs");
       setLanguage(ctx.language || "fr");
       setTimezone(ctx.timezone || "Europe/Paris");
@@ -274,7 +279,11 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
       const ctx = refineData.context || {};
       setSectorFinal(ctx.sector_final || "");
       setNorthStarMetric(ctx.north_star_metric || "");
-      setKpisFinal(ctx.kpis_final || []);
+      // Extract just the KPI names from the objects
+      const kpiNames = (ctx.kpis_final || []).map((kpi: any) => 
+        typeof kpi === 'string' ? kpi : kpi.name
+      );
+      setKpisFinal(kpiNames);
       setPreferredTone(ctx.preferred_tone || "no-bs");
       setLanguage(ctx.language || "fr");
       setTimezone(ctx.timezone || "Europe/Paris");
