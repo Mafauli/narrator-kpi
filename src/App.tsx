@@ -16,6 +16,7 @@ import AdminDatabase from "./pages/AdminDatabase";
 import AdminLogs from "./pages/AdminLogs";
 import AdminAvatars from "./pages/AdminAvatars";
 import Profile from "./pages/Profile";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminButton } from "./components/AdminButton";
@@ -87,6 +88,7 @@ const App = () => (
               <Profile />
             </ProtectedRoute>
           } />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
