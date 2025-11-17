@@ -24,33 +24,37 @@ const BriefSetup = () => {
   const [whatsappPhone, setWhatsappPhone] = useState('');
 
   useEffect(() => {
-    // Load user preferences
-    const loadUserData = async () => {
+    const initializeAndGenerate = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         navigate('/auth');
         return;
       }
 
+      // Load user preferences first
       const { data: preferences } = await supabase
         .from('preferences')
         .select('whatsapp_phone, send_dow, send_hour, timezone')
         .eq('user_id', user.id)
         .single();
 
+      let phoneNumber = '';
       if (preferences) {
-        setWhatsappPhone(preferences.whatsapp_phone || '');
+        phoneNumber = preferences.whatsapp_phone || '';
+        setWhatsappPhone(phoneNumber);
         setScheduleDay(preferences.send_dow || 1);
         setScheduleHour(preferences.send_hour || 8);
         setScheduleTimezone(preferences.timezone || 'Europe/Paris');
       }
+
+      // Then start brief generation with the loaded phone number
+      await generateBrief(phoneNumber);
     };
 
-    loadUserData();
-    generateBrief();
+    initializeAndGenerate();
   }, []);
 
-  const generateBrief = async () => {
+  const generateBrief = async (phoneNumberToUse: string) => {
     let messageInterval: NodeJS.Timeout | null = null;
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -184,7 +188,7 @@ const BriefSetup = () => {
         { 
           body: { 
             brief_id: briefId,
-            phone_number: whatsappPhone
+            phone_number: phoneNumberToUse
           }
         }
       );
