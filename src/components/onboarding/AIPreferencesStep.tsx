@@ -32,9 +32,18 @@ interface AIPreferencesStepProps {
   }>;
 }
 
-// Helper function to convert markdown bold (**text**) to HTML
-const formatTextWithBold = (text: string) => {
-  return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+// Safe component to render text with bold formatting (prevents XSS)
+const FormattedText = ({ text }: { text: string }) => {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return (
+    <>
+      {parts.map((part, i) => 
+        part.startsWith('**') && part.endsWith('**') 
+          ? <strong key={i}>{part.slice(2, -2)}</strong>
+          : part
+      )}
+    </>
+  );
 };
 
 export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesStepProps) => {
@@ -415,10 +424,9 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
         {/* Pitch Message */}
         {pitchMessage && (
           <div className="bg-accent/10 border border-accent/20 rounded-lg p-4">
-            <p 
-              className="text-sm"
-              dangerouslySetInnerHTML={{ __html: formatTextWithBold(pitchMessage) }}
-            />
+            <p className="text-sm">
+              <FormattedText text={pitchMessage} />
+            </p>
           </div>
         )}
 
@@ -429,10 +437,9 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
               <MessageSquare className="h-4 w-4" />
               Aperçu de votre brief
             </Label>
-            <div 
-              className="bg-muted rounded-lg p-4 text-sm whitespace-pre-line max-h-64 overflow-y-auto"
-              dangerouslySetInnerHTML={{ __html: formatTextWithBold(sampleBrief) }}
-            />
+            <div className="bg-muted rounded-lg p-4 text-sm whitespace-pre-line max-h-64 overflow-y-auto">
+              <FormattedText text={sampleBrief} />
+            </div>
           </div>
         )}
 
