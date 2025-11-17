@@ -90,7 +90,7 @@ const AdminPrompts = () => {
         <div>
           <h2 className="text-3xl font-bold text-foreground mb-2">Gestion des Prompts</h2>
           <p className="text-muted-foreground">
-            Éditez les prompts DeepSeek, consultez l'historique et analysez les réponses générées
+            Éditez les prompts IA, consultez l'historique et analysez les réponses générées
           </p>
         </div>
 

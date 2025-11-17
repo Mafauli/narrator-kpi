@@ -82,7 +82,7 @@ export const CostDashboard = () => {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              DeepSeek (Aujourd'hui)
+              Lovable AI (Gemini)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -137,7 +137,7 @@ export const CostDashboard = () => {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              DeepSeek (Ce mois)
+              Lovable AI (Gemini)
             </CardTitle>
           </CardHeader>
           <CardContent>

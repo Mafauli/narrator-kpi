@@ -208,7 +208,7 @@ export const BriefAnalysis = () => {
 
             <TabsContent value="response" className="space-y-4">
               <div>
-                <h4 className="text-sm font-medium mb-2">Réponse complète DeepSeek</h4>
+                <h4 className="text-sm font-medium mb-2">Réponse complète de l'IA</h4>
                 <div className="bg-muted p-4 rounded-md max-h-[400px] overflow-y-auto">
                   <p className="text-sm whitespace-pre-wrap">{selectedLog?.deepseek_response_full}</p>
                 </div>

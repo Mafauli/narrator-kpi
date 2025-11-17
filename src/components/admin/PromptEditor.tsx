@@ -83,7 +83,7 @@ export const PromptEditor = ({ currentPrompt, onSave }: PromptEditorProps) => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Éditeur de Prompt DeepSeek</CardTitle>
+            <CardTitle>Éditeur de Prompt IA</CardTitle>
             <CardDescription className="mt-2">
               Version actuelle : <Badge variant="secondary">v{currentPrompt?.version || 1}</Badge>
             </CardDescription>
@@ -119,7 +119,7 @@ export const PromptEditor = ({ currentPrompt, onSave }: PromptEditorProps) => {
             value={promptText}
             onChange={(e) => setPromptText(e.target.value)}
             className="min-h-[300px] font-mono text-sm"
-            placeholder="Entrez le prompt système pour DeepSeek..."
+            placeholder="Entrez le prompt système pour l'IA..."
           />
           <p className="text-xs text-muted-foreground mt-2">
             {promptText.length} caractères • {promptText.split('\n').length} lignes
