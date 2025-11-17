@@ -114,6 +114,7 @@ serve(async (req) => {
 
     // Fetch system prompt from database
     const systemPrompt = await getSystemPrompt(supabase);
+    logger.info("System prompt fetched", { promptLength: systemPrompt.length });
 
     // Check cache for infer phase
     if (phase === 'infer') {
@@ -149,6 +150,14 @@ serve(async (req) => {
         views_schema,
         samples
       };
+      
+      // Log data being sent
+      logger.info("Infer phase data prepared", {
+        viewsCount: views_schema?.length || 0,
+        samplesCount: samples?.length || 0,
+        viewsSchemaPreview: JSON.stringify(views_schema).substring(0, 500),
+        samplesPreview: JSON.stringify(samples).substring(0, 500)
+      });
     } else {
       if (!prior_inference || !user_reply_raw) {
         throw new Error('Missing prior_inference or user_reply_raw for refine phase');
@@ -160,7 +169,29 @@ serve(async (req) => {
         prior_inference,
         user_reply_raw
       };
+      
+      logger.info("Refine phase data prepared", {
+        userReplyLength: user_reply_raw?.length || 0
+      });
     }
+
+    // Log the complete request to DeepSeek
+    const deepseekRequestBody = {
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: JSON.stringify(userMessage) }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.7
+    };
+    
+    logger.info("Sending request to DeepSeek", {
+      model: 'deepseek-chat',
+      systemPromptLength: systemPrompt.length,
+      userMessageLength: JSON.stringify(userMessage).length,
+      fullUserMessage: JSON.stringify(userMessage).substring(0, 1000) // First 1000 chars
+    });
 
     // Call DeepSeek
     const deepseekResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -169,15 +200,7 @@ serve(async (req) => {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: JSON.stringify(userMessage) }
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.7
-      }),
+      body: JSON.stringify(deepseekRequestBody),
     });
 
     if (!deepseekResponse.ok) {
@@ -204,7 +227,9 @@ serve(async (req) => {
     logger.info("DeepSeek response received", { 
       phase, 
       responseLength: responseText.length,
-      tokensUsed: deepseekData.usage?.total_tokens || 0
+      tokensUsed: deepseekData.usage?.total_tokens || 0,
+      responsePreview: responseText.substring(0, 500), // First 500 chars
+      fullResponse: responseText // Complete response for debugging
     });
 
     // Parse JSON response
