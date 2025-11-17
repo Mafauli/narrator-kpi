@@ -338,15 +338,15 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
 
         const userPrompt = `Voici les données de la semaine ${weekStart} :\n\n${JSON.stringify(filteredData, null, 2)}`;
 
-        // Étape 5: Génération du texte avec DeepSeek
-        const deepseekStartTime = Date.now();
-        sendLog({ timestamp: Date.now(), type: "info", icon: "🤖", message: "Génération du brief avec DeepSeek..." });
+        // Étape 5: Génération du texte avec Lovable AI
+        const aiStartTime = Date.now();
+        sendLog({ timestamp: Date.now(), type: "info", icon: "🤖", message: "Génération du brief avec Lovable AI (Gemini Flash)..." });
 
         // Extract target duration from preferences (default to 2 minutes)
         const durationMatch = preferences.brief_duration?.match(/(\d+)/);
         const targetDurationMinutes = durationMatch ? parseInt(durationMatch[1]) : 2;
 
-        const deepseekResponse = await supabaseClient.functions.invoke("generate-brief-text", {
+        const aiResponse = await supabaseClient.functions.invoke("generate-brief-text", {
           body: {
             domain: avatar.role,
             data: userPrompt,
@@ -356,37 +356,37 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
           },
         });
 
-        if (deepseekResponse.error) {
-          await logToDatabase(supabaseClient, userId, "deepseek", "error", "Failed to generate brief text", {
-            error: deepseekResponse.error.message
+        if (aiResponse.error) {
+          await logToDatabase(supabaseClient, userId, "lovable-ai", "error", "Failed to generate brief text", {
+            error: aiResponse.error.message
           });
           sendError("Failed to generate brief text");
           return;
         }
 
-        const deepseekResult = deepseekResponse.data;
-        const narrativeText = deepseekResult.text;
+        const aiResult = aiResponse.data;
+        const narrativeText = aiResult.text;
         const wordCount = narrativeText.split(/\s+/).length;
         
-        sendLog({ timestamp: Date.now(), type: "info", icon: "  └─", message: `Modèle: ${deepseekResult.model}` });
-        if (deepseekResult.usage) {
+        sendLog({ timestamp: Date.now(), type: "info", icon: "  └─", message: `Modèle: ${aiResult.model}` });
+        if (aiResult.usage) {
           sendLog({ 
             timestamp: Date.now(), 
             type: "info", 
             icon: "  └─", 
-            message: `Tokens: ${deepseekResult.usage.prompt_tokens} (input) + ${deepseekResult.usage.completion_tokens} (output)` 
+            message: `Tokens: ${aiResult.usage.prompt_tokens} (input) + ${aiResult.usage.completion_tokens} (output)` 
           });
         }
         sendLog({ timestamp: Date.now(), type: "success", icon: "✅", message: "Brief généré", details: `${narrativeText.length} caractères, ${wordCount} mots` });
         
-        await logToDatabase(supabaseClient, userId, "deepseek", "info", "Brief text generated successfully", {
-          model: deepseekResult.model,
+        await logToDatabase(supabaseClient, userId, "lovable-ai", "info", "Brief text generated successfully", {
+          model: aiResult.model,
           text_length: narrativeText.length,
           word_count: wordCount,
-          tokens_input: deepseekResult.usage?.prompt_tokens,
-          tokens_output: deepseekResult.usage?.completion_tokens,
+          tokens_input: aiResult.usage?.prompt_tokens,
+          tokens_output: aiResult.usage?.completion_tokens,
           target_duration_minutes: targetDurationMinutes
-        }, Date.now() - deepseekStartTime);
+        }, Date.now() - aiStartTime);
 
         // Étape 6: Génération de l'audio avec ElevenLabs
         const elevenLabsStartTime = Date.now();
@@ -561,7 +561,7 @@ ${preferences.custom_instructions ? `\n- ${preferences.custom_instructions}` : '
             filtered_records: filteredRecords,
             estimated_tokens: filteredRecords * 200,
             generation_time_ms: endTime - startTime,
-            deepseek_usage: deepseekResult.usage,
+            ai_usage: aiResult.usage,
             avatar: avatar.name,
             voice: voice?.name || voiceId,
           },

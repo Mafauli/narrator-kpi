@@ -176,10 +176,10 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
 
     const userPrompt = `Voici les données de la semaine ${weekStart} :\n\n${JSON.stringify(filteredData, null, 2)}`;
 
-    // Étape 5: Génération du texte avec DeepSeek
+    // Étape 5: Génération du texte avec Lovable AI
     addLog("info", "🤖", "Analyse intelligente de vos KPIs...");
 
-    const deepseekResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-brief-text`, {
+    const aiResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-brief-text`, {
       method: "POST",
       headers: {
         "Authorization": authHeader,
@@ -192,16 +192,16 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
       }),
     });
 
-    if (!deepseekResponse.ok) {
+    if (!aiResponse.ok) {
       throw new Error("Failed to generate brief text");
     }
 
-    const deepseekResult = await deepseekResponse.json();
-    const briefText = deepseekResult.text;
-    
-    addLog("info", "  └─", `Modèle: ${deepseekResult.model || 'deepseek-chat'}`);
-    if (deepseekResult.usage) {
-      addLog("info", "  └─", `Tokens: ${deepseekResult.usage.prompt_tokens} (input) + ${deepseekResult.usage.completion_tokens} (output)`);
+    const aiResult = await aiResponse.json();
+    const briefText = aiResult.text;
+
+    addLog("info", "  └─", `Modèle: ${aiResult.model || 'google/gemini-2.5-flash'}`);
+    if (aiResult.usage) {
+      addLog("info", "  └─", `Tokens: ${aiResult.usage.prompt_tokens} (input) + ${aiResult.usage.completion_tokens} (output)`);
     }
     addLog("success", "✅", `Brief généré`, `${briefText.length} caractères`);
 
@@ -322,7 +322,7 @@ Analyse les données KPI suivantes et rédis un brief audio structuré pour un d
           filtered_records: filteredRecords,
           estimated_tokens: filteredRecords * 200,
           generation_time_ms: endTime - startTime,
-          deepseek_usage: deepseekResult.usage,
+          ai_usage: aiResult.usage,
           avatar: avatar.name,
           voice: voice?.name || voiceId,
         },

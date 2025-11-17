@@ -23,12 +23,12 @@ serve(async (req) => {
       throw new Error("domain and data are required");
     }
 
-    const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
-    if (!DEEPSEEK_API_KEY) {
-      throw new Error("DEEPSEEK_API_KEY not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY not configured");
     }
 
-    logger.info("Brief text generation requested", { domain, targetDuration: targetDurationMinutes });
+    logger.info("Brief text generation requested", { domain, targetDuration: targetDurationMinutes, model: "google/gemini-2.5-flash" });
 
     // Fetch system prompt from database if no custom prompt provided
     let systemPrompt = customPrompt;
@@ -93,15 +93,15 @@ RÈGLES STRICTES:
 
     const generationStartTime = Date.now();
 
-    // Appel à l'API DeepSeek avec modèle rapide
-    const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+    // Call Lovable AI Gateway (Gemini Flash)
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }
@@ -112,8 +112,8 @@ RÈGLES STRICTES:
     });
 
     if (!response.ok) {
-      logger.error("DeepSeek API error", { status: response.status });
-      throw new Error(`DeepSeek API error: ${response.status}`);
+      logger.error("Lovable AI API error", { status: response.status });
+      throw new Error(`Lovable AI API error: ${response.status}`);
     }
 
     const result = await response.json();
@@ -137,8 +137,8 @@ RÈGLES STRICTES:
         const inputTokens = result.usage?.prompt_tokens || 0;
         const outputTokens = result.usage?.completion_tokens || 0;
         
-        // Calculate cost: $0.28/1M input tokens, $0.42/1M output tokens
-        const cost = (inputTokens * 0.28 / 1_000_000) + (outputTokens * 0.42 / 1_000_000);
+        // Calculate cost for Gemini 2.5 Flash: $0.075/1M input tokens, $0.30/1M output tokens
+        const cost = (inputTokens * 0.075 / 1_000_000) + (outputTokens * 0.30 / 1_000_000);
 
         await supabase
           .from('brief_generation_logs')
@@ -169,7 +169,7 @@ RÈGLES STRICTES:
     return new Response(
       JSON.stringify({ 
         text: generatedText,
-        model: "deepseek-chat",
+        model: "google/gemini-2.5-flash",
         usage: result.usage 
       }),
       {

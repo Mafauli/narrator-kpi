@@ -28,7 +28,7 @@ export const useDeepSeek = () => {
   }: GenerateBriefTextParams): Promise<string | null> => {
     try {
       setGenerating(true);
-      console.log("Generating brief text with DeepSeek...", { domain });
+      console.log("Generating brief text with Lovable AI...", { domain });
       
       const { data: result, error } = await supabase.functions.invoke<GenerateBriefTextResponse>(
         "generate-brief-text",

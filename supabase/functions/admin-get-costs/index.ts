@@ -54,19 +54,19 @@ serve(async (req) => {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-    // 1. Get DeepSeek costs from brief_generation_logs
-    const { data: deepseekToday } = await supabase
+    // 1. Get AI costs from brief_generation_logs
+    const { data: aiToday } = await supabase
       .from('brief_generation_logs')
       .select('deepseek_cost')
       .gte('created_at', todayStart);
 
-    const { data: deepseekMonth } = await supabase
+    const { data: aiMonth } = await supabase
       .from('brief_generation_logs')
       .select('deepseek_cost')
       .gte('created_at', monthStart);
 
-    const deepseekTodayCost = deepseekToday?.reduce((sum, log) => sum + Number(log.deepseek_cost || 0), 0) || 0;
-    const deepseekMonthCost = deepseekMonth?.reduce((sum, log) => sum + Number(log.deepseek_cost || 0), 0) || 0;
+    const aiTodayCost = aiToday?.reduce((sum, log) => sum + Number(log.deepseek_cost || 0), 0) || 0;
+    const aiMonthCost = aiMonth?.reduce((sum, log) => sum + Number(log.deepseek_cost || 0), 0) || 0;
 
     // 2. Get briefs count for ElevenLabs estimation
     const { data: briefsToday } = await supabase
@@ -129,16 +129,16 @@ serve(async (req) => {
 
     const result = {
       today: {
-        deepseek: deepseekTodayCost,
+        deepseek: aiTodayCost,
         elevenlabs: elevenLabsTodayCost,
         whatsapp: whatsappTodayCost,
-        total: deepseekTodayCost + elevenLabsTodayCost + whatsappTodayCost,
+        total: aiTodayCost + elevenLabsTodayCost + whatsappTodayCost,
       },
       month: {
-        deepseek: deepseekMonthCost,
+        deepseek: aiMonthCost,
         elevenlabs: elevenLabsMonthCost,
         whatsapp: whatsappMonthCost,
-        total: deepseekMonthCost + elevenLabsMonthCost + whatsappMonthCost,
+        total: aiMonthCost + elevenLabsMonthCost + whatsappMonthCost,
       },
       stats: {
         briefs_today: briefsTodayCount || 0,

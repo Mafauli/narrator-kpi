@@ -57,7 +57,7 @@ const AdminLogs = () => {
           <TabsContent value="generate-text" className="space-y-4">
             <EdgeFunctionLogs 
               functionName="generate-brief-text"
-              title="Logs - Génération Texte DeepSeek"
+              title="Logs - Génération Texte IA"
             />
           </TabsContent>
 

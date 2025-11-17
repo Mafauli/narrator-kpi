@@ -139,7 +139,7 @@ const TestBriefGeneration = () => {
           <div>
             <h1 className="text-3xl font-bold">Test Brief Generation</h1>
             <p className="text-muted-foreground">
-              Workflow complet : Airtable → DeepSeek → ElevenLabs
+              Workflow complet : Airtable → Lovable AI (Gemini) → ElevenLabs
             </p>
           </div>
           <div className="flex gap-3">
