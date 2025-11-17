@@ -74,99 +74,106 @@ const PrivacyPolicy = () => {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">5. Partage des données</h2>
             <p className="text-foreground/80">
-              Vos données sont partagées uniquement avec les prestataires techniques nécessaires au fonctionnement du service :
+              Vos données peuvent être partagées avec les tiers suivants, uniquement dans le cadre de la fourniture du service :
             </p>
             <ul className="list-disc list-inside space-y-2 text-foreground/80 ml-4">
-              <li><strong>WhatsApp Business API (Meta) :</strong> Pour l'envoi des messages WhatsApp</li>
-              <li><strong>ElevenLabs :</strong> Pour la synthèse vocale de vos briefs</li>
-              <li><strong>Airtable / Shopify :</strong> Pour récupérer vos données KPIs (avec votre autorisation OAuth)</li>
-              <li><strong>Hébergement (UE) :</strong> Infrastructure Supabase hébergée en Europe pour le stockage sécurisé</li>
+              <li><strong>Meta (WhatsApp Business API) :</strong> Pour l'envoi de messages vocaux</li>
+              <li><strong>ElevenLabs :</strong> Pour la génération des synthèses vocales</li>
+              <li><strong>Airtable / Shopify :</strong> Pour la récupération de vos données business (selon votre connexion)</li>
+              <li><strong>Hébergeur cloud (Supabase) :</strong> Pour le stockage sécurisé de vos données</li>
             </ul>
             <p className="text-foreground/80">
-              <strong>Important :</strong> Nous ne vendons jamais vos données à des tiers et ne les utilisons pas à des fins publicitaires.
+              Nous ne vendons jamais vos données personnelles à des tiers.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold">6. Durée de conservation</h2>
+            <h2 className="text-2xl font-semibold">6. Conservation des données</h2>
+            <p className="text-foreground/80">
+              Vos données sont conservées pendant la durée nécessaire à la fourniture du service :
+            </p>
             <ul className="list-disc list-inside space-y-2 text-foreground/80 ml-4">
-              <li><strong>Données de compte :</strong> Conservées tant que votre compte est actif</li>
-              <li><strong>Historique des briefs :</strong> 12 mois maximum</li>
-              <li><strong>Logs techniques :</strong> 30 jours</li>
-              <li><strong>Après suppression de compte :</strong> Suppression complète sous 30 jours (sauf obligations légales de conservation)</li>
+              <li><strong>Compte actif :</strong> Tant que votre compte est actif et non supprimé</li>
+              <li><strong>Briefs et audios :</strong> Conservés indéfiniment tant que le compte est actif (vous pouvez les supprimer manuellement)</li>
+              <li><strong>Logs techniques :</strong> 30 jours maximum</li>
+              <li><strong>Après suppression du compte :</strong> Vos données sont supprimées sous 30 jours, sauf obligations légales de conservation</li>
             </ul>
           </section>
 
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">7. Vos droits</h2>
             <p className="text-foreground/80">
-              Conformément au RGPD, vous disposez des droits suivants concernant vos données personnelles :
+              Conformément au RGPD, vous disposez des droits suivants :
             </p>
             <ul className="list-disc list-inside space-y-2 text-foreground/80 ml-4">
-              <li><strong>Droit d'accès :</strong> Obtenir une copie de vos données</li>
-              <li><strong>Droit de rectification :</strong> Corriger vos données inexactes</li>
-              <li><strong>Droit à l'effacement :</strong> Supprimer vos données ("droit à l'oubli")</li>
+              <li><strong>Droit d'accès :</strong> Obtenir une copie de vos données personnelles</li>
+              <li><strong>Droit de rectification :</strong> Corriger vos données inexactes ou incomplètes</li>
+              <li><strong>Droit à l'effacement :</strong> Supprimer vos données dans certaines conditions</li>
               <li><strong>Droit à la limitation :</strong> Limiter le traitement de vos données</li>
-              <li><strong>Droit à la portabilité :</strong> Recevoir vos données dans un format structuré</li>
+              <li><strong>Droit à la portabilité :</strong> Récupérer vos données dans un format structuré</li>
               <li><strong>Droit d'opposition :</strong> Vous opposer au traitement de vos données</li>
               <li><strong>Droit de retrait du consentement :</strong> Retirer votre consentement à tout moment</li>
             </ul>
             <p className="text-foreground/80 mt-4">
-              Pour exercer ces droits, contactez-nous à : <strong>contact@kpinarrator.com</strong>
+              Pour exercer vos droits, contactez-nous à : <strong>contact@kpinarrator.com</strong>
             </p>
           </section>
 
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">8. Sécurité des données</h2>
             <p className="text-foreground/80">
-              Nous mettons en œuvre des mesures de sécurité techniques et organisationnelles appropriées pour protéger vos données :
+              Nous mettons en œuvre des mesures techniques et organisationnelles appropriées pour protéger vos données :
             </p>
             <ul className="list-disc list-inside space-y-2 text-foreground/80 ml-4">
-              <li>Chiffrement des données en transit (HTTPS/TLS)</li>
-              <li>Chiffrement des données sensibles au repos (tokens OAuth, accès API)</li>
-              <li>Contrôle d'accès strict avec authentification utilisateur</li>
-              <li>Infrastructure hébergée dans l'Union Européenne</li>
-              <li>Surveillance et journalisation des accès</li>
+              <li>Chiffrement des données en transit (HTTPS/TLS) et au repos</li>
+              <li>Authentification sécurisée et contrôle d'accès strict (RLS)</li>
+              <li>Sauvegardes régulières et hébergement sécurisé</li>
+              <li>Monitoring et logs de sécurité</li>
+              <li>Tests de sécurité réguliers</li>
             </ul>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold">9. Cookies et technologies similaires</h2>
+            <h2 className="text-2xl font-semibold">9. Cookies</h2>
             <p className="text-foreground/80">
-              KPI Narrator utilise uniquement des cookies strictement nécessaires au fonctionnement du service (authentification, préférences de session). Aucun cookie de tracking publicitaire n'est utilisé.
+              Notre site utilise des cookies strictement nécessaires au fonctionnement du service (authentification, préférences). 
+              Aucun cookie publicitaire ou de tracking tiers n'est utilisé.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold">10. Modifications de la politique</h2>
+            <h2 className="text-2xl font-semibold">10. Modifications de cette politique</h2>
             <p className="text-foreground/80">
-              Nous nous réservons le droit de modifier cette politique de confidentialité à tout moment. Les modifications seront notifiées par e-mail ou via l'application. La date de dernière mise à jour est indiquée en haut de cette page.
+              Nous nous réservons le droit de modifier cette politique de confidentialité à tout moment. 
+              En cas de modification substantielle, nous vous en informerons par e-mail ou via une notification sur la plateforme. 
+              La date de dernière mise à jour est indiquée en haut de cette page.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold">11. Réclamation</h2>
+            <h2 className="text-2xl font-semibold">11. Réclamations</h2>
             <p className="text-foreground/80">
-              Si vous estimez que vos droits ne sont pas respectés, vous pouvez introduire une réclamation auprès de la Commission Nationale de l'Informatique et des Libertés (CNIL) :
+              Si vous estimez que vos droits ne sont pas respectés, vous pouvez introduire une réclamation auprès de la CNIL (Commission Nationale de l'Informatique et des Libertés) :
             </p>
             <p className="text-foreground/80">
-              <strong>CNIL :</strong> 3 Place de Fontenoy, TSA 80715, 75334 Paris Cedex 07<br />
-              <strong>Site web :</strong> <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">www.cnil.fr</a>
+              <strong>CNIL :</strong> 3 Place de Fontenoy - TSA 80715 - 75334 PARIS CEDEX 07<br />
+              <strong>Site web :</strong> <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">www.cnil.fr</a>
             </p>
           </section>
 
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">12. Contact</h2>
             <p className="text-foreground/80">
-              Pour toute question concernant cette politique de confidentialité ou le traitement de vos données personnelles, vous pouvez nous contacter à :
+              Pour toute question concernant cette politique de confidentialité ou le traitement de vos données personnelles, 
+              veuillez nous contacter à :
             </p>
             <p className="text-foreground/80">
-              <strong>E-mail :</strong> contact@kpinarrator.com<br />
-              <strong>Adresse :</strong> KPI Narrator, France
+              <strong>Email :</strong> contact@kpinarrator.com<br />
+              <strong>Service :</strong> KPI Narrator
             </p>
           </section>
 
-          <div className="pt-8 border-t">
+          <div className="pt-8 border-t border-border mt-8">
             <p className="text-sm text-muted-foreground text-center">
               © 2025 KPI Narrator. Tous droits réservés.
             </p>
