@@ -35,6 +35,8 @@ interface AIPreferencesStepProps {
 export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesStepProps) => {
   const [loading, setLoading] = useState(true);
   const [refining, setRefining] = useState(false);
+  const [progressMessage, setProgressMessage] = useState("");
+  const [progressPercent, setProgressPercent] = useState(0);
   const [refiningMessages] = useState([
     "🤔 Je réfléchis à ta réponse...",
     "💡 J'ajuste mes recommandations...",
