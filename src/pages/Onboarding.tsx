@@ -62,6 +62,11 @@ const Onboarding = () => {
     viewName: string;
   }[]>([]);
 
+  // Scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
+
   // Detect OAuth redirect with success parameter
   useEffect(() => {
     if (searchParams.get('airtable_connected') === 'true') {

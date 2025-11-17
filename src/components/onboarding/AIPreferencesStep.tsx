@@ -32,6 +32,11 @@ interface AIPreferencesStepProps {
   }>;
 }
 
+// Helper function to convert markdown bold (**text**) to HTML
+const formatTextWithBold = (text: string) => {
+  return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+};
+
 export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesStepProps) => {
   const [loading, setLoading] = useState(true);
   const [refining, setRefining] = useState(false);
@@ -405,7 +410,10 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
         {/* Pitch Message */}
         {pitchMessage && (
           <div className="bg-accent/10 border border-accent/20 rounded-lg p-4">
-            <p className="text-sm">{pitchMessage}</p>
+            <p 
+              className="text-sm"
+              dangerouslySetInnerHTML={{ __html: formatTextWithBold(pitchMessage) }}
+            />
           </div>
         )}
 
@@ -416,9 +424,10 @@ export const AIPreferencesStep = ({ onComplete, selectedViews }: AIPreferencesSt
               <MessageSquare className="h-4 w-4" />
               Aperçu de votre brief
             </Label>
-            <div className="bg-muted rounded-lg p-4 text-sm whitespace-pre-line max-h-64 overflow-y-auto">
-              {sampleBrief}
-            </div>
+            <div 
+              className="bg-muted rounded-lg p-4 text-sm whitespace-pre-line max-h-64 overflow-y-auto"
+              dangerouslySetInnerHTML={{ __html: formatTextWithBold(sampleBrief) }}
+            />
           </div>
         )}
 
