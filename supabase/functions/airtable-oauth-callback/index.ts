@@ -121,18 +121,22 @@ serve(async (req) => {
           </div>
           <script>
             // Try to notify parent window first
+            // Always redirect to close the OAuth popup
+            const redirectUrl = 'https://preview--insights-audio.lovable.app/app/onboarding?step=2&airtable_connected=true';
+            
             if (window.opener && !window.opener.closed) {
               try {
                 window.opener.postMessage({ type: 'airtable-oauth-success' }, '*');
-                setTimeout(() => window.close(), 300);
+                setTimeout(() => {
+                  window.opener.location.href = redirectUrl;
+                  window.close();
+                }, 500);
               } catch (e) {
                 console.error('Failed to notify parent:', e);
-                // Redirect in this window if postMessage fails
-                window.location.href = '${Deno.env.get('APP_URL') || ''}/app/onboarding?step=2&airtable_connected=true';
+                window.location.href = redirectUrl;
               }
             } else {
-              // No opener, redirect directly in this window
-              window.location.href = '${Deno.env.get('APP_URL') || ''}/app/onboarding?step=2&airtable_connected=true';
+              window.location.href = redirectUrl;
             }
           </script>
         </body>
