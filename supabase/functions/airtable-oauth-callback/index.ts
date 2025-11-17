@@ -104,7 +104,7 @@ serve(async (req) => {
 
     console.log('Connection saved successfully');
 
-    // Return HTML that notifies parent window and closes popup
+    // Return HTML that redirects to onboarding step 2
     return new Response(`
       <html>
         <head>
@@ -117,15 +117,22 @@ serve(async (req) => {
         <body>
           <div class="message">
             <div class="success">✓ Connexion réussie</div>
-            <p>Fermeture automatique...</p>
+            <p>Redirection en cours...</p>
           </div>
           <script>
-            if (window.opener) {
-              window.opener.postMessage({ type: 'airtable-oauth-success' }, '*');
-              setTimeout(() => window.close(), 500);
+            // Try to notify parent window first
+            if (window.opener && !window.opener.closed) {
+              try {
+                window.opener.postMessage({ type: 'airtable-oauth-success' }, '*');
+                setTimeout(() => window.close(), 300);
+              } catch (e) {
+                console.error('Failed to notify parent:', e);
+                // Redirect in this window if postMessage fails
+                window.location.href = '${Deno.env.get('APP_URL') || ''}/app/onboarding?step=2&airtable_connected=true';
+              }
             } else {
-              // Fallback: redirect if no opener
-              window.location.href = '${Deno.env.get('APP_URL') || ''}/app/onboarding?airtable_connected=true';
+              // No opener, redirect directly in this window
+              window.location.href = '${Deno.env.get('APP_URL') || ''}/app/onboarding?step=2&airtable_connected=true';
             }
           </script>
         </body>
